@@ -62,7 +62,9 @@ public:
 	bool	WriteImage();
 
 	// Modifications
-	bool	Modify();
+	bool	resizeImage(float);
+	bool	blurImage(float);
+	bool	Modify(float, bool);
 
 };
 

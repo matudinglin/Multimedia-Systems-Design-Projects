@@ -14,6 +14,14 @@
 // Include class files
 #include "Image.h"
 #include <iostream>
+#include <string>
+#include <sstream>
+#include <vector>
+
+using std::string;
+using std::stringstream;
+using std::vector;
+using std::stoi;
 
 #define MAX_LOADSTRING 100
 
@@ -43,27 +51,28 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	AllocConsole();
 	freopen("CONOUT$", "w", stdout);
 
-	// The rest of command line argument is truncated.
-	// If you want to use it, please modify the code.
-	if (lpCmdLine[0] == 0) {
-		wprintf(L"No command line arguement.");
-		return -1;
+	// Parse and get arguments
+	string cmdLine(lpCmdLine);
+	stringstream ss(cmdLine);
+	string arg;
+	vector<string> args;
+	while (getline(ss, arg, ' '))
+	{
+		args.push_back(arg);
 	}
-	int cnt=0;
-	while (lpCmdLine[cnt]!= ' '&& lpCmdLine[cnt] !=0) {
-		cnt++;
-	}
-	lpCmdLine[cnt] = 0;
-	printf("The first parameter was: %s", lpCmdLine);
+	string imagePath = args[0];
+	float scalingFactor = stof(args[1]);
+	bool antiAliasing = stoi(args[2]) == 1;
+	int overlayWindowSize = stoi(args[3]);
 
 	// Set up the images
-	int w = 1920;
-	int h = 1080;
+	int w = 1920*4;
+	int h = 1080*4;
 	inImage.setWidth(w);
 	inImage.setHeight(h);
-
-	inImage.setImagePath(lpCmdLine);
+	inImage.setImagePath(imagePath.c_str());
 	inImage.ReadImage();
+	inImage.Modify(scalingFactor, antiAliasing);
 
 	// Initialize global strings
 	LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -180,6 +189,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	RECT rt;
 	GetClientRect(hWnd, &rt);
 
+	// if control key is pressed, print out mouse position to console
+	if (GetAsyncKeyState(VK_CONTROL) < 0)
+	{
+		POINT p;
+		GetCursorPos(&p);
+		ScreenToClient(hWnd, &p);
+		printf("Mouse position: %d, %d\n", p.x, p.y);
+	}
+
+
 	switch (message) 
 	{
 		case WM_COMMAND:
@@ -204,12 +223,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case WM_PAINT:
 			{
 				hdc = BeginPaint(hWnd, &ps);
-				// TO DO: Add any drawing code here...
-				char text[1000];
-				strcpy(text, "The original image is shown as follows. \n");
-				DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
-				strcpy(text, "\nUpdate program with your code to modify input image. \n");
-				DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
+
+				//char text[1000];
+				//strcpy(text, "The original image is shown as follows. \n");
+				//DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
+				//strcpy(text, "\nUpdate program with your code to modify input image. \n");
+				//DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
 
 				BITMAPINFO bmi;
 				CBitmap bitmap;
@@ -223,7 +242,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				bmi.bmiHeader.biSizeImage = inImage.getWidth()*inImage.getHeight();
 
 				SetDIBitsToDevice(hdc,
-								  0,100,inImage.getWidth(),inImage.getHeight(),
+								  0,0,inImage.getWidth(),inImage.getHeight(),
 								  0,0,0,inImage.getHeight(),
 								  inImage.getImageData(),&bmi,DIB_RGB_COLORS);
 							   
