@@ -30,6 +30,10 @@ MyImage			inImage;						// image objects
 HINSTANCE		hInst;							// current instance
 TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];			// The title bar text
+bool controlPressed = false;					// Whether the control key is pressed
+int overlayWindowSize = 0;						// Size of the overlay window
+float scalingFactor = 0.0f;						// Scaling factor for the image
+unsigned char* squareData;
 
 // Foward declarations of functions included in this code module:
 ATOM				MyRegisterClass(HINSTANCE hInstance);
@@ -40,9 +44,9 @@ LRESULT CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 
 // Main entry point for a windows application
 int APIENTRY WinMain(HINSTANCE hInstance,
-                     HINSTANCE hPrevInstance,
-                     LPSTR     lpCmdLine,
-                     int       nCmdShow)
+	HINSTANCE hPrevInstance,
+	LPSTR     lpCmdLine,
+	int       nCmdShow)
 {
 	MSG msg;
 	HACCEL hAccelTable;
@@ -61,13 +65,13 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		args.push_back(arg);
 	}
 	string imagePath = args[0];
-	float scalingFactor = stof(args[1]);
+	scalingFactor = stof(args[1]);
 	bool antiAliasing = stoi(args[2]) == 1;
-	int overlayWindowSize = stoi(args[3]);
+	overlayWindowSize = stoi(args[3]);
 
 	// Set up the images
-	int w = 1920*4;
-	int h = 1080*4;
+	int w = 1920 * 4;
+	int h = 1080 * 4;
 	inImage.setWidth(w);
 	inImage.setHeight(h);
 	inImage.setImagePath(imagePath.c_str());
@@ -80,7 +84,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	MyRegisterClass(hInstance);
 
 	// Perform application initialization:
-	if (!InitInstance (hInstance, nCmdShow)) 
+	if (!InitInstance(hInstance, nCmdShow))
 	{
 		return FALSE;
 	}
@@ -88,9 +92,9 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	hAccelTable = LoadAccelerators(hInstance, (LPCTSTR)IDC_IMAGE);
 
 	// Main message loop:
-	while (GetMessage(&msg, NULL, 0, 0)) 
+	while (GetMessage(&msg, NULL, 0, 0))
 	{
-		if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg)) 
+		if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
@@ -117,19 +121,19 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 {
 	WNDCLASSEX wcex;
 
-	wcex.cbSize = sizeof(WNDCLASSEX); 
+	wcex.cbSize = sizeof(WNDCLASSEX);
 
-	wcex.style			= CS_HREDRAW | CS_VREDRAW;
-	wcex.lpfnWndProc	= (WNDPROC)WndProc;
-	wcex.cbClsExtra		= 0;
-	wcex.cbWndExtra		= 0;
-	wcex.hInstance		= hInstance;
-	wcex.hIcon			= LoadIcon(hInstance, (LPCTSTR)IDI_IMAGE);
-	wcex.hCursor		= LoadCursor(NULL, IDC_ARROW);
-	wcex.hbrBackground	= (HBRUSH)(COLOR_WINDOW+1);
-	wcex.lpszMenuName	= (LPCSTR)IDC_IMAGE;
-	wcex.lpszClassName	= szWindowClass;
-	wcex.hIconSm		= LoadIcon(wcex.hInstance, (LPCTSTR)IDI_SMALL);
+	wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.lpfnWndProc = (WNDPROC)WndProc;
+	wcex.cbClsExtra = 0;
+	wcex.cbWndExtra = 0;
+	wcex.hInstance = hInstance;
+	wcex.hIcon = LoadIcon(hInstance, (LPCTSTR)IDI_IMAGE);
+	wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wcex.lpszMenuName = (LPCSTR)IDC_IMAGE;
+	wcex.lpszClassName = szWindowClass;
+	wcex.hIconSm = LoadIcon(wcex.hInstance, (LPCTSTR)IDI_SMALL);
 
 	return RegisterClassEx(&wcex);
 }
@@ -147,22 +151,22 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   HWND hWnd;
+	HWND hWnd;
 
-   hInst = hInstance; // Store instance handle in our global variable
+	hInst = hInstance; // Store instance handle in our global variable
 
-   hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, NULL, NULL, hInstance, NULL);
+	hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, NULL, NULL, hInstance, NULL);
 
-   if (!hWnd)
-   {
-      return FALSE;
-   }
-   
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
+	if (!hWnd)
+	{
+		return FALSE;
+	}
 
-   return TRUE;
+	ShowWindow(hWnd, nCmdShow);
+	UpdateWindow(hWnd);
+
+	return TRUE;
 }
 
 
@@ -178,9 +182,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-// TO DO: part useful to render video frames, may place your own code here in this function
-// You are free to change the following code in any way in order to display the video
-
 	int wmId, wmEvent;
 	PAINTSTRUCT ps;
 	HDC hdc;
@@ -189,73 +190,106 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	RECT rt;
 	GetClientRect(hWnd, &rt);
 
-	// if control key is pressed, print out mouse position to console
-	if (GetAsyncKeyState(VK_CONTROL) < 0)
+	switch (message)
 	{
-		POINT p;
-		GetCursorPos(&p);
-		ScreenToClient(hWnd, &p);
-		printf("Mouse position: %d, %d\n", p.x, p.y);
-	}
-
-
-	switch (message) 
-	{
-		case WM_COMMAND:
-			wmId    = LOWORD(wParam); 
-			wmEvent = HIWORD(wParam); 
-			// Parse the menu selections:
-			switch (wmId)
-			{
-				case IDM_ABOUT:
-				   DialogBox(hInst, (LPCTSTR)IDD_ABOUTBOX, hWnd, (DLGPROC)About);
-				   break;
-				case ID_MODIFY_IMAGE:
-				   InvalidateRect(hWnd, &rt, false); 
-				   break;
-				case IDM_EXIT:
-				   DestroyWindow(hWnd);
-				   break;
-				default:
-				   return DefWindowProc(hWnd, message, wParam, lParam);
-			}
+	case WM_COMMAND:
+		wmId = LOWORD(wParam);
+		wmEvent = HIWORD(wParam);
+		// Parse the menu selections:
+		switch (wmId)
+		{
+		case IDM_ABOUT:
+			DialogBox(hInst, (LPCTSTR)IDD_ABOUTBOX, hWnd, (DLGPROC)About);
 			break;
-		case WM_PAINT:
-			{
-				hdc = BeginPaint(hWnd, &ps);
-
-				//char text[1000];
-				//strcpy(text, "The original image is shown as follows. \n");
-				//DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
-				//strcpy(text, "\nUpdate program with your code to modify input image. \n");
-				//DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
-
-				BITMAPINFO bmi;
-				CBitmap bitmap;
-				memset(&bmi,0,sizeof(bmi));
-				bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
-				bmi.bmiHeader.biWidth = inImage.getWidth();
-				bmi.bmiHeader.biHeight = -inImage.getHeight();  // Use negative height.  DIB is top-down.
-				bmi.bmiHeader.biPlanes = 1;
-				bmi.bmiHeader.biBitCount = 24;
-				bmi.bmiHeader.biCompression = BI_RGB;
-				bmi.bmiHeader.biSizeImage = inImage.getWidth()*inImage.getHeight();
-
-				SetDIBitsToDevice(hdc,
-								  0,0,inImage.getWidth(),inImage.getHeight(),
-								  0,0,0,inImage.getHeight(),
-								  inImage.getImageData(),&bmi,DIB_RGB_COLORS);
-							   
-				EndPaint(hWnd, &ps);
-			}
+		case ID_MODIFY_IMAGE:
+			InvalidateRect(hWnd, &rt, false);
 			break;
-		case WM_DESTROY:
-			PostQuitMessage(0);
+		case IDM_EXIT:
+			DestroyWindow(hWnd);
 			break;
 		default:
 			return DefWindowProc(hWnd, message, wParam, lParam);
-   }
-   return 0;
+		}
+		break;
+	case WM_KEYDOWN:
+		if (wParam == VK_CONTROL)
+		{
+			controlPressed = true;
+			// Request a repaint when Control key is pressed
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		break;
+
+	case WM_KEYUP:
+		if (wParam == VK_CONTROL)
+		{
+			controlPressed = false;
+			// Request a repaint when Control key is released
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		break;
+	case WM_PAINT:
+	{
+		hdc = BeginPaint(hWnd, &ps);
+
+		//char text[1000];
+		//strcpy(text, "The original image is shown as follows. \n");
+		//DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
+		//strcpy(text, "\nUpdate program with your code to modify input image. \n");
+		//DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
+
+		 //Clear the client area with a background color (e.g., white)
+		 //HBRUSH hBrush = CreateSolidBrush(RGB(255, 255, 255)); // Replace with your desired background color
+		 //RECT clientRect;
+		 //GetClientRect(hWnd, &clientRect);
+		 //FillRect(hdc, &clientRect, hBrush);
+		 //DeleteObject(hBrush);
+
+		BITMAPINFO bmi;
+		CBitmap bitmap;
+		memset(&bmi, 0, sizeof(bmi));
+		bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
+		bmi.bmiHeader.biWidth = inImage.getWidth();
+		bmi.bmiHeader.biHeight = -inImage.getHeight();  // Use negative height.  DIB is top-down.
+		bmi.bmiHeader.biPlanes = 1;
+		bmi.bmiHeader.biBitCount = 24;
+		bmi.bmiHeader.biCompression = BI_RGB;
+		bmi.bmiHeader.biSizeImage = inImage.getWidth() * inImage.getHeight();
+
+		SetDIBitsToDevice(hdc,
+			0, 0, inImage.getWidth(), inImage.getHeight(),
+			0, 0, 0, inImage.getHeight(),
+			inImage.getImageData(), &bmi, DIB_RGB_COLORS);
+
+		if (controlPressed)
+		{
+			POINT p;
+			GetCursorPos(&p);
+			ScreenToClient(hWnd, &p);
+
+			int halfSize = overlayWindowSize / 2;
+			int left = p.x - halfSize;
+			int top = p.y - halfSize;
+
+			std::cout << "Left: " << left << ", Top: " << top << std::endl;
+
+			SetDIBitsToDevice(hdc,
+				left, top, overlayWindowSize, overlayWindowSize,
+				left, top, 0, overlayWindowSize,
+				inImage.getOriginalImageData(), &bmi, DIB_RGB_COLORS);
+
+		}
+
+		EndPaint(hWnd, &ps);
+	}
+	break;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
+	default:
+		return DefWindowProc(hWnd, message, wParam, lParam);
+	}
+	return 0;
 }
 
 
@@ -266,18 +300,18 @@ LRESULT CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
-		case WM_INITDIALOG:
-				return TRUE;
+	case WM_INITDIALOG:
+		return TRUE;
 
-		case WM_COMMAND:
-			if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) 
-			{
-				EndDialog(hDlg, LOWORD(wParam));
-				return TRUE;
-			}
-			break;
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+		{
+			EndDialog(hDlg, LOWORD(wParam));
+			return TRUE;
+		}
+		break;
 	}
-    return FALSE;
+	return FALSE;
 }
 
 

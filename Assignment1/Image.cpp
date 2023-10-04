@@ -8,6 +8,8 @@
 //*****************************************************************************
 
 #include "Image.h"
+#include <iostream>
+using namespace std;
 
 // Constructor and Desctructors
 MyImage::MyImage()
@@ -109,6 +111,18 @@ bool MyImage::ReadImage()
 		Data[3 * i] = Bbuf[i];
 		Data[3 * i + 1] = Gbuf[i];
 		Data[3 * i + 2] = Rbuf[i];
+	}
+
+	originalData = new char[Width * Height * 3];
+	size_t dataSize = Width * Height * 3;
+	memcpy(originalData, Data, dataSize);
+	originalWidth = Width;
+	originalHeight = Height;
+
+	overlayData = new char[200 * 200 * 3];
+	// make overlay data all black
+	for (int i = 0; i < 200 * 200 * 3; i++) {
+		overlayData[i] = 0;
 	}
 
 	// Clean up and return
@@ -293,4 +307,41 @@ bool MyImage::Modify(float scalingFactor, bool antiAliasing)
 	resizeImage(scalingFactor);
 
 	return true;
+}
+
+char* MyImage::getOverlayData(int overlayWindowSize, int left, int top, float scalingFactor)
+{
+	if (!Data || overlayWindowSize <= 0.0f)
+	{
+		return NULL; // Return NULL if the original data is not available or the window size is invalid
+	}
+
+	// Check if the overlay window is within image bounds
+	if (left >= 0 && top >= 0 && (left + overlayWindowSize) <= Width && (top + overlayWindowSize) <= Height)
+	{
+		// output state
+		cout << "Get result" << endl;
+		// Copy the overlay data from the original data
+		for (int y = 0; y < overlayWindowSize; y++)
+		{
+			for (int x = 0; x < overlayWindowSize; x++)
+			{
+				int srcX = left + x;
+				int srcY = top + y;
+				int destIndex = (y * overlayWindowSize + x) * 3;
+				int srcIndex = (srcY * Width + srcX) * 3;
+
+				// Copy pixel data (R, G, B components)
+				overlayData[destIndex] = 0;
+				overlayData[destIndex + 1] = 0;
+				overlayData[destIndex + 2] = 0;
+			}
+		}
+
+		return overlayData; // Return the cropped overlay data
+	}
+	else
+	{
+		return NULL; // Overlay window is out of image bounds
+	}
 }
