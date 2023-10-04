@@ -14,12 +14,22 @@
 // Include class files
 #include "Image.h"
 #include <iostream>
+#include <string>
+#include <sstream>
+#include <vector>
+
+using std::string;
+using std::stringstream;
+using std::vector;
 
 #define MAX_LOADSTRING 100
 
 // Global Variables:
 MyImage			inImage;						// image objects
-HINSTANCE		hInst;							// current instance
+vector<MyImage> objectImages;					// vector of object images
+int imageWidth = 640;							// image width
+int imageHeight = 480;							// image height	
+HINSTANCE		hInst;							// current instances
 TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];			// The title bar text
 
@@ -43,27 +53,33 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	AllocConsole();
 	freopen("CONOUT$", "w", stdout);
 
-	// The rest of command line argument is truncated.
-	// If you want to use it, please modify the code.
-	if (lpCmdLine[0] == 0) {
-		wprintf(L"No command line arguement.");
-		return -1;
+	// Parse and get arguments
+	string cmdLine(lpCmdLine);
+	stringstream ss(cmdLine);
+	string arg;
+	vector<string> args;
+	while (getline(ss, arg, ' '))
+	{
+		args.push_back(arg);
 	}
-	int cnt=0;
-	while (lpCmdLine[cnt]!= ' '&& lpCmdLine[cnt] !=0) {
-		cnt++;
-	}
-	lpCmdLine[cnt] = 0;
-	printf("The first parameter was: %s", lpCmdLine);
+	string imagePath = args[0];
 
-	// Set up the images
-	int w = 1920;
-	int h = 1080;
-	inImage.setWidth(w);
-	inImage.setHeight(h);
-
-	inImage.setImagePath(lpCmdLine);
+	// Set up the input images
+	inImage.setWidth(imageWidth);
+	inImage.setHeight(imageHeight);
+	inImage.setImagePath(imagePath.c_str());
 	inImage.ReadImage();
+
+	// Add rest of arguments to vector of object images
+	for (int i = 1; i < args.size(); i++)
+	{
+		MyImage objectImage;
+		objectImage.setWidth(imageWidth);
+		objectImage.setHeight(imageHeight);
+		objectImage.setImagePath(args[i].c_str());
+		objectImage.ReadImage();
+		objectImages.push_back(objectImage);
+	}
 
 	// Initialize global strings
 	LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -205,11 +221,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			{
 				hdc = BeginPaint(hWnd, &ps);
 				// TO DO: Add any drawing code here...
-				char text[1000];
-				strcpy(text, "The original image is shown as follows. \n");
-				DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
-				strcpy(text, "\nUpdate program with your code to modify input image. \n");
-				DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
+				//char text[1000];
+				//strcpy(text, "The original image is shown as follows. \n");
+				//DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
+				//strcpy(text, "\nUpdate program with your code to modify input image. \n");
+				//DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
 
 				BITMAPINFO bmi;
 				CBitmap bitmap;
@@ -223,7 +239,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				bmi.bmiHeader.biSizeImage = inImage.getWidth()*inImage.getHeight();
 
 				SetDIBitsToDevice(hdc,
-								  0,100,inImage.getWidth(),inImage.getHeight(),
+								  0,0,inImage.getWidth(),inImage.getHeight(),
 								  0,0,0,inImage.getHeight(),
 								  inImage.getImageData(),&bmi,DIB_RGB_COLORS);
 							   
