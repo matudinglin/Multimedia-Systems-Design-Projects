@@ -36,6 +36,14 @@ BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 
+// Object detection parameters
+int scanWindowWidth = 100;
+int scanWindowHeight = 100;
+int scanWindowStepWidth = 50;
+int scanWindowStepHeight = 50;
+int highestScanWindowSimilarityScoreXCoordinate;
+int highestScanWindowSimilarityScoreYCoordinate;
+
 
 // Main entry point for a windows application
 int APIENTRY WinMain(HINSTANCE hInstance,
@@ -103,6 +111,48 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		similarityScores.push_back(similarityScore);
 		std::cout << "Similarity score between input image and object image " << i << ": " << similarityScore << std::endl;
 	}
+
+	// Scan through input image and find the object with the highest similarity score
+	// For each scan window, get the histogram and similarity score
+	std::vector<double> scanWindowSimilarityScores;
+	std::vector<int> scanWindowXCoordinates;
+	std::vector<int> scanWindowYCoordinates;
+	for (int y = 0; y < imageHeight - scanWindowHeight; y += scanWindowStepHeight)
+	{
+		for (int x = 0; x < imageWidth - scanWindowWidth; x += scanWindowStepWidth)
+		{
+			// Get the histogram of the scan window
+			MyImage* scanWindowImage = new MyImage();
+			scanWindowImage->setWidth(scanWindowWidth);
+			scanWindowImage->setHeight(scanWindowHeight);
+			scanWindowImage->setImagePath(inImage->getImagePath());
+			scanWindowImage->setImageData(inImage->getImageData() + (y * imageWidth + x) * 3);
+			Histogram scanWindowHistogram(scanWindowImage);
+			// Get the similarity score between the scan window and each object image
+			std::vector<double> scanWindowObjectSimilarityScores;
+			for (int i = 0; i < objectHistograms.size(); i++)
+			{
+				double scanWindowObjectSimilarityScore = getColorDistributionSimilarity(scanWindowHistogram, objectHistograms[i]);
+				scanWindowObjectSimilarityScores.push_back(scanWindowObjectSimilarityScore);
+			}
+			// Get the highest similarity score between the scan window and each object image
+			double scanWindowSimilarityScore = *std::max_element(scanWindowObjectSimilarityScores.begin(), scanWindowObjectSimilarityScores.end());
+			scanWindowSimilarityScores.push_back(scanWindowSimilarityScore);
+			scanWindowXCoordinates.push_back(x);
+			scanWindowYCoordinates.push_back(y);
+		}
+	}
+	// Get the highest similarity score between the scan window and each object image
+	double highestScanWindowSimilarityScore = *std::max_element(scanWindowSimilarityScores.begin(), scanWindowSimilarityScores.end());
+	// Get the index of the highest similarity score
+	int highestScanWindowSimilarityScoreIndex = std::distance(scanWindowSimilarityScores.begin(), std::max_element(scanWindowSimilarityScores.begin(), scanWindowSimilarityScores.end()));
+	// Get the x and y coordinates of the highest similarity score
+	highestScanWindowSimilarityScoreXCoordinate = scanWindowXCoordinates[highestScanWindowSimilarityScoreIndex];
+	highestScanWindowSimilarityScoreYCoordinate = scanWindowYCoordinates[highestScanWindowSimilarityScoreIndex];
+	// Print result
+	std::cout << "Highest similarity score between input image and object image: " << highestScanWindowSimilarityScore << std::endl;
+	std::cout << "Highest similarity score x coordinate: " << highestScanWindowSimilarityScoreXCoordinate << std::endl;
+	std::cout << "Highest similarity score y coordinate: " << highestScanWindowSimilarityScoreYCoordinate << std::endl;
 
 	//----------------------------------------------------------------------------------------------------
 
@@ -270,10 +320,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 								  0,0,0,inImage->getHeight(),
 								  inImage->getImageData(), &bmi, DIB_RGB_COLORS);
 
-				SetDIBitsToDevice(hdc,
-					640, 0, objectImages[0]->getWidth(), objectImages[0]->getHeight(),
-					0, 0, 0, objectImages[0]->getHeight(),
-					objectImages[0]->getImageData(), &bmi, DIB_RGB_COLORS);
+				// Draw a rectangle around the scan window with the highest similarity score
+				HPEN hPen = CreatePen(PS_SOLID, 2, RGB(255, 0, 0));
+				SelectObject(hdc, hPen);
+				Rectangle(hdc, highestScanWindowSimilarityScoreXCoordinate, highestScanWindowSimilarityScoreYCoordinate, highestScanWindowSimilarityScoreXCoordinate + scanWindowWidth, highestScanWindowSimilarityScoreYCoordinate + scanWindowHeight);
+
 							   
 				EndPaint(hWnd, &ps);
 			}
