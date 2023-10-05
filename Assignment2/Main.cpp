@@ -65,8 +65,6 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	inImage->setWidth(imageWidth);
 	inImage->setHeight(imageHeight);
 	inImage->setImagePath(args[0].c_str());
-	// Print args[0] to console
-	std::cout << "Input image path: " << args[0] << std::endl;
 	inImage->ReadImage();
 
 	// Add rest of arguments to vector of object images
@@ -76,26 +74,26 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		objectImage->setWidth(imageWidth);
 		objectImage->setHeight(imageHeight);
 		objectImage->setImagePath(args[i].c_str());
-		// Print args[i] to console
-		std::cout << "Object image " << i << " path: " << args[i] << std::endl;
 		objectImage->ReadImage();
 		objectImages.push_back(objectImage);
 	}
 
 	//------------------------------------------Object Detection------------------------------------------
 
-	//// Get the histogram of the input image
-	//Histogram inputHistogram(inImage);
-	//std::cout << "Input image histogram: " << inputHistogram << std::endl;
+	// Get the histogram of the input image
+	Histogram inputHistogram(inImage);
+	std::cout << "Input image histogram: " << std::endl;
+	std::cout << inputHistogram << std::endl;
 
-	//// Get the histogram of each object image
-	//std::vector<Histogram> objectHistograms;
-	//for (int i = 0; i < objectImages.size(); i++)
-	//{
-	//	Histogram objectHistogram(objectImages[i]);
-	//	objectHistograms.push_back(objectHistogram);
-	//	std::cout << "Object image " << i << " histogram: " << objectHistogram << std::endl;
-	//}
+	// Get the histogram of each object image
+	std::vector<Histogram> objectHistograms;
+	for (int i = 0; i < objectImages.size(); i++)
+	{
+		Histogram objectHistogram(objectImages[i]);
+		objectHistograms.push_back(objectHistogram);
+		std::cout << "Object image " << i << " histogram: " << std::endl;
+		std::cout << objectHistogram << std::endl;
+	}
 	//----------------------------------------------------------------------------------------------------
 
 

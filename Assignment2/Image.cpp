@@ -21,7 +21,7 @@ MyImage::MyImage()
 MyImage::~MyImage()
 {
 	if ( Data )
-		delete Data;
+		delete[] Data;
 }
 
 

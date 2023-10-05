@@ -2,13 +2,13 @@
 #include "Image.h"
 
 // Convert RGB image to YUV image
-void RGB2YUV(const MyImage& rgb, MyImage &yuvImage) {
+void RGB2YUV(const MyImage* rgb, MyImage *yuvImage) {
 	// Get image width and height
-	int width = rgb.getWidth();
-	int height = rgb.getHeight();
+	int width = rgb->getWidth();
+	int height = rgb->getHeight();
 
 	// Get RGB data
-	char* rgbData = rgb.getImageData();
+	char* rgbData = rgb->getImageData();
 
 	// Allocate memory for YUV data
 	char* yuvData = new char[width * height * 3];
@@ -27,7 +27,7 @@ void RGB2YUV(const MyImage& rgb, MyImage &yuvImage) {
 	}
 
 	// Set YUV data
-	yuvImage.setImageData(yuvData);
+	yuvImage->setImageData(yuvData);
 }
 
 Histogram::Histogram(){
@@ -38,13 +38,13 @@ Histogram::Histogram(){
 	}
 }
 
-Histogram::Histogram(const MyImage& rgbImage) {
+Histogram::Histogram(const MyImage* rgbImage) {
 	// Initialize YUV image
-	MyImage yuvImage;
-	int width = rgbImage.getWidth();
-	int height = rgbImage.getHeight();
-	yuvImage.setWidth(width);
-	yuvImage.setHeight(height);
+	MyImage* yuvImage = new MyImage();
+	int width = rgbImage->getWidth();
+	int height = rgbImage->getHeight();
+	yuvImage->setWidth(width);
+	yuvImage->setHeight(height);
 
 	// Convert RGB image to YUV image
 	RGB2YUV(rgbImage, yuvImage);
@@ -56,8 +56,8 @@ Histogram::Histogram(const MyImage& rgbImage) {
 	}
 	
 	// Compute uv histogram
-	char* yuvData = yuvImage.getImageData();
-	char* rgbData = rgbImage.getImageData();
+	char* yuvData = yuvImage->getImageData();
+	char* rgbData = rgbImage->getImageData();
 	for (int i = 0; i < width * height * 3; i += 3) {
 		// Check if the pixel is pure green (0, 255, 0 in RGB)
 		if (rgbData[i] == 0 && rgbData[i + 1] == 255 && rgbData[i + 2] == 0) {
@@ -72,6 +72,8 @@ Histogram::Histogram(const MyImage& rgbImage) {
 		uvHistogram[0][u]++;
 		uvHistogram[1][v]++;
 	}
+
+	delete yuvImage;
 }
 
 // Override << operator to print histogram

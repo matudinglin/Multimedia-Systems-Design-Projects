@@ -14,7 +14,7 @@ private:
 
 public:
 	Histogram();
-	Histogram(const MyImage& rbgImage);
+	Histogram(const MyImage*  rbgImage);
 	~Histogram() {};
 	// override << operator to print histogram
 	friend std::ostream& operator<<(std::ostream& os, const Histogram& histogram);
