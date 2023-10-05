@@ -20,5 +20,5 @@ public:
 	std::array<std::array<int, 256>, 2> getUVHistogram() const { return uvHistogram; };
 };
 
-double getColorDistributionSimilarity(const Histogram& aHistogram, const Histogram& bHistogram);
+double getHistogramSimilarity(const Histogram& aHistogram, const Histogram& bHistogram);
 void RGB2YUV(const MyImage* rgbImage, MyImage* yuvImage);

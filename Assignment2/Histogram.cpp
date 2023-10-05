@@ -96,7 +96,7 @@ std::ostream& operator<<(std::ostream& os, const Histogram& histogram) {
 }
 
 // Get color distribution similarity between two histograms using cosine similarity
-double getColorDistributionSimilarity(const Histogram& aHistogram, const Histogram& bHistogram)
+double getHistogramSimilarity(const Histogram& aHistogram, const Histogram& bHistogram)
 {
 	// Get U and V histograms
 	std::array<std::array<int, 256>, 2> aUVHistogram = aHistogram.getUVHistogram();
