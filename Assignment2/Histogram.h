@@ -16,7 +16,9 @@ public:
 	Histogram();
 	Histogram(const MyImage*  rbgImage);
 	~Histogram() {};
-	// override << operator to print histogram
 	friend std::ostream& operator<<(std::ostream& os, const Histogram& histogram);
+	std::array<std::array<int, 256>, 2> getUVHistogram() const { return uvHistogram; };
 };
 
+double getColorDistributionSimilarity(const Histogram& aHistogram, const Histogram& bHistogram);
+void RGB2YUV(const MyImage* rgbImage, MyImage* yuvImage);

@@ -94,6 +94,16 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		std::cout << "Object image " << i << " histogram: " << std::endl;
 		std::cout << objectHistogram << std::endl;
 	}
+
+	// Get similarity score between input image and each object image
+	std::vector<double> similarityScores;
+	for (int i = 0; i < objectHistograms.size(); i++)
+	{
+		double similarityScore = getColorDistributionSimilarity(inputHistogram, objectHistograms[i]);
+		similarityScores.push_back(similarityScore);
+		std::cout << "Similarity score between input image and object image " << i << ": " << similarityScore << std::endl;
+	}
+
 	//----------------------------------------------------------------------------------------------------
 
 

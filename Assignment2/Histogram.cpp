@@ -60,10 +60,10 @@ Histogram::Histogram(const MyImage* rgbImage) {
 	char* rgbData = rgbImage->getImageData();
 	for (int i = 0; i < width * height * 3; i += 3) {
 		// Check if the pixel is pure green (0, 255, 0 in RGB)
-		if (rgbData[i] == 0 && rgbData[i + 1] == 255 && rgbData[i + 2] == 0) {
+		if (int(rgbData[i]) == 0 && int(rgbData[i + 1]) == -1 && int(rgbData[i + 2]) == 0) {
 			continue;
 		}
-
+		
 		// Get U and V values in 0-255 range
 		int u = (int)yuvData[i + 1] + 128;
 		int v = (int)yuvData[i + 2] + 128;
@@ -93,4 +93,30 @@ std::ostream& operator<<(std::ostream& os, const Histogram& histogram) {
 	os << std::endl;
 
 	return os;
+}
+
+// Get color distribution similarity between two histograms using cosine similarity
+double getColorDistributionSimilarity(const Histogram& aHistogram, const Histogram& bHistogram)
+{
+	// Get U and V histograms
+	std::array<std::array<int, 256>, 2> aUVHistogram = aHistogram.getUVHistogram();
+	std::array<std::array<int, 256>, 2> bUVHistogram = bHistogram.getUVHistogram();
+
+	// Compute dot product
+	double dotProduct = 0;
+	double aNorm = 0;
+	double bNorm = 0;
+	for (int i = 0; i < 256; i++) {
+		dotProduct += static_cast<double>(aUVHistogram[0][i]) * static_cast<double>(bUVHistogram[0][i]) +
+			static_cast<double>(aUVHistogram[1][i]) * static_cast<double>(bUVHistogram[1][i]);
+		aNorm += static_cast<double>(aUVHistogram[0][i]) * static_cast<double>(aUVHistogram[0][i]) +
+			static_cast<double>(aUVHistogram[1][i]) * static_cast<double>(aUVHistogram[1][i]);
+		bNorm += static_cast<double>(bUVHistogram[0][i]) * static_cast<double>(bUVHistogram[0][i]) +
+			static_cast<double>(bUVHistogram[1][i]) * static_cast<double>(bUVHistogram[1][i]);
+	}
+
+	// Compute cosine similarity
+	double cosineSimilarity = dotProduct / (sqrt(aNorm) * sqrt(bNorm));
+
+	return cosineSimilarity;
 }
