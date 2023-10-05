@@ -9,7 +9,6 @@
 
 #include "Image.h"
 
-
 // Constructor and Desctructors
 MyImage::MyImage() 
 {
@@ -66,7 +65,6 @@ MyImage & MyImage::operator= (const MyImage &otherImage)
 // Function to read the image given a path
 bool MyImage::ReadImage()
 {
-
 	// Verify ImagePath
 	if (ImagePath[0] == 0 || Width < 0 || Height < 0 )
 	{
@@ -78,6 +76,7 @@ bool MyImage::ReadImage()
 	// Create a valid output file pointer
 	FILE *IN_FILE;
 	IN_FILE = fopen(ImagePath, "rb");
+
 	if ( IN_FILE == NULL ) 
 	{
 		fprintf(stderr, "Error Opening File for Reading");
@@ -113,9 +112,9 @@ bool MyImage::ReadImage()
 	}
 
 	// Clean up and return
-	delete Rbuf;
-	delete Gbuf;
-	delete Bbuf;
+	delete[] Rbuf;
+	delete[] Gbuf;
+	delete[] Bbuf;
 	fclose(IN_FILE);
 
 	return true;
@@ -173,9 +172,9 @@ bool MyImage::WriteImage()
 	}
 	
 	// Clean up and return
-	delete Rbuf;
-	delete Gbuf;
-	delete Bbuf;
+	delete[] Rbuf;
+	delete[] Gbuf;
+	delete[] Bbuf;
 	fclose(OUT_FILE);
 
 	return true;

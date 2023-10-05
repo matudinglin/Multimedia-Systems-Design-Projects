@@ -13,20 +13,17 @@
 
 // Include class files
 #include "Image.h"
+#include "Histogram.h"
 #include <iostream>
 #include <string>
 #include <sstream>
 #include <vector>
 
-using std::string;
-using std::stringstream;
-using std::vector;
-
 #define MAX_LOADSTRING 100
 
 // Global Variables:
-MyImage			inImage;						// image objects
-vector<MyImage> objectImages;					// vector of object images
+MyImage*			inImage;					// image objects
+std::vector<MyImage*> objectImages;				// vector of object images
 int imageWidth = 640;							// image width
 int imageHeight = 480;							// image height	
 HINSTANCE		hInst;							// current instances
@@ -54,32 +51,54 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	freopen("CONOUT$", "w", stdout);
 
 	// Parse and get arguments
-	string cmdLine(lpCmdLine);
-	stringstream ss(cmdLine);
-	string arg;
-	vector<string> args;
+	std::string cmdLine(lpCmdLine);
+	std::stringstream ss(cmdLine);
+	std::string arg;
+	std::vector<std::string> args;
 	while (getline(ss, arg, ' '))
 	{
 		args.push_back(arg);
 	}
-	string imagePath = args[0];
 
 	// Set up the input images
-	inImage.setWidth(imageWidth);
-	inImage.setHeight(imageHeight);
-	inImage.setImagePath(imagePath.c_str());
-	inImage.ReadImage();
+	inImage = new MyImage();
+	inImage->setWidth(imageWidth);
+	inImage->setHeight(imageHeight);
+	inImage->setImagePath(args[0].c_str());
+	// Print args[0] to console
+	std::cout << "Input image path: " << args[0] << std::endl;
+	inImage->ReadImage();
 
 	// Add rest of arguments to vector of object images
 	for (int i = 1; i < args.size(); i++)
 	{
-		MyImage objectImage;
-		objectImage.setWidth(imageWidth);
-		objectImage.setHeight(imageHeight);
-		objectImage.setImagePath(args[i].c_str());
-		objectImage.ReadImage();
+		MyImage* objectImage = new MyImage();
+		objectImage->setWidth(imageWidth);
+		objectImage->setHeight(imageHeight);
+		objectImage->setImagePath(args[i].c_str());
+		// Print args[i] to console
+		std::cout << "Object image " << i << " path: " << args[i] << std::endl;
+		objectImage->ReadImage();
 		objectImages.push_back(objectImage);
 	}
+
+	//------------------------------------------Object Detection------------------------------------------
+
+	//// Get the histogram of the input image
+	//Histogram inputHistogram(inImage);
+	//std::cout << "Input image histogram: " << inputHistogram << std::endl;
+
+	//// Get the histogram of each object image
+	//std::vector<Histogram> objectHistograms;
+	//for (int i = 0; i < objectImages.size(); i++)
+	//{
+	//	Histogram objectHistogram(objectImages[i]);
+	//	objectHistograms.push_back(objectHistogram);
+	//	std::cout << "Object image " << i << " histogram: " << objectHistogram << std::endl;
+	//}
+	//----------------------------------------------------------------------------------------------------
+
+
 
 	// Initialize global strings
 	LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -231,17 +250,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				CBitmap bitmap;
 				memset(&bmi,0,sizeof(bmi));
 				bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
-				bmi.bmiHeader.biWidth = inImage.getWidth();
-				bmi.bmiHeader.biHeight = -inImage.getHeight();  // Use negative height.  DIB is top-down.
+				bmi.bmiHeader.biWidth = inImage->getWidth();
+				bmi.bmiHeader.biHeight = -inImage->getHeight();  // Use negative height.  DIB is top-down.
 				bmi.bmiHeader.biPlanes = 1;
 				bmi.bmiHeader.biBitCount = 24;
 				bmi.bmiHeader.biCompression = BI_RGB;
-				bmi.bmiHeader.biSizeImage = inImage.getWidth()*inImage.getHeight();
+				bmi.bmiHeader.biSizeImage = inImage->getWidth()*inImage->getHeight();
 
 				SetDIBitsToDevice(hdc,
-								  0,0,inImage.getWidth(),inImage.getHeight(),
-								  0,0,0,inImage.getHeight(),
-								  inImage.getImageData(),&bmi,DIB_RGB_COLORS);
+								  0,0,inImage->getWidth(),inImage->getHeight(),
+								  0,0,0,inImage->getHeight(),
+								  inImage->getImageData(), &bmi, DIB_RGB_COLORS);
+
+				SetDIBitsToDevice(hdc,
+					640, 0, objectImages[0]->getWidth(), objectImages[0]->getHeight(),
+					0, 0, 0, objectImages[0]->getHeight(),
+					objectImages[0]->getImageData(), &bmi, DIB_RGB_COLORS);
 							   
 				EndPaint(hWnd, &ps);
 			}

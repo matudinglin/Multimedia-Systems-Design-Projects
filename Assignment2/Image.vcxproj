@@ -125,10 +125,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Histogram.cpp" />
     <ClCompile Include="Image.cpp" />
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Histogram.h" />
     <ClInclude Include="Image.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="StdAfx.h" />
