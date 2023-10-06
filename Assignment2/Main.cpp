@@ -43,7 +43,8 @@ int scanWindowWidth = 50;
 int scanWindowHeight = 50;
 int scanWindowStepWidth = 10;
 int scanWindowStepHeight = 10;
-std::pair<int, int> candidateCoordinate;
+double percentageThreshold = 0.8;
+POINT points[5];
 
 
 // Main entry point for a windows application
@@ -117,8 +118,6 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 			// Get the similarity score between the scan window and each object image
 			std::vector<double> scanWindowScores;
 			double scanWindowScore = getHistogramSimilarity(scanWindowHistogram, objectHistograms[0]);
-			// Print the similarity score at this coordinate
-			std::cout << "Similarity score at (" << x << ", " << y << "): " << scanWindowScore << std::endl;
 			scanWindowScores.push_back(scanWindowScore);
 			// Get the highest similarity score between the scan window and each object image
 			double scanWindowSimilarityScore = *std::max_element(scanWindowScores.begin(), scanWindowScores.end());
@@ -132,11 +131,49 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	// Get the index of the highest similarity score
 	int highestScanWindowSimilarityScoreIndex = std::distance(scanWindowSimilarityScores.begin(), std::max_element(scanWindowSimilarityScores.begin(), scanWindowSimilarityScores.end()));
 	// Add the coordinates of the scan window within the threshold from the highest similarity score to the vector of candidate coordinates
-	candidateCoordinate.first = scanWindowXCoordinates[highestScanWindowSimilarityScoreIndex];
-	candidateCoordinate.second = scanWindowYCoordinates[highestScanWindowSimilarityScoreIndex];
-	// Print the coordinates of the candidate
-	std::cout << "Candidate coordinates: (" << candidateCoordinate.first << ", " << candidateCoordinate.second << ")" << std::endl;
-	
+	std::vector<std::pair<int, int>> candidateCoordinates;
+	for (int i = 0; i < scanWindowSimilarityScores.size(); i++)
+	{
+		if (scanWindowSimilarityScores[i] >= highestScanWindowSimilarityScore * percentageThreshold)
+		{
+			candidateCoordinates.push_back(std::make_pair(scanWindowXCoordinates[i], scanWindowYCoordinates[i]));
+		}
+	}
+	// Combine the candidate region to a single region, assign to the points array
+	int minX = candidateCoordinates[0].first;
+	int maxX = candidateCoordinates[0].first + scanWindowWidth;
+	int minY = candidateCoordinates[0].second;
+	int maxY = candidateCoordinates[0].second + scanWindowHeight;
+	for (int i = 1; i < candidateCoordinates.size(); i++)
+	{
+		if (candidateCoordinates[i].first < minX)
+		{
+			minX = candidateCoordinates[i].first;
+		}
+		if (candidateCoordinates[i].first + scanWindowWidth > maxX)
+		{
+			maxX = candidateCoordinates[i].first + scanWindowWidth;
+		}
+		if (candidateCoordinates[i].second < minY)
+		{
+			minY = candidateCoordinates[i].second;
+		}
+		if (candidateCoordinates[i].second + scanWindowHeight > maxY)
+		{
+			maxY = candidateCoordinates[i].second + scanWindowHeight;
+		}
+	}
+	points[0].x = minX;
+	points[0].y = minY;
+	points[1].x = maxX;
+	points[1].y = minY;
+	points[2].x = maxX;
+	points[2].y = maxY;
+	points[3].x = minX;
+	points[3].y = maxY;
+	points[4].x = minX;
+	points[4].y = minY;
+
 	//----------------------------------------------------------------------------------------------------
 
 
@@ -316,11 +353,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				//				  croppedImage->getImageData(), &bmi, DIB_RGB_COLORS);
 
 
-				// Draw a hollow rectangle around the candidate coordinate
-				HPEN hPen = CreatePen(PS_SOLID, 2, RGB(255, 0, 0));
+				// Set the color of the pen to Yellow, width = 5
+				HPEN hPen = CreatePen(PS_SOLID, 5, RGB(255, 255, 0));
 				SelectObject(hdc, hPen);
-				Rectangle(hdc, candidateCoordinate.first, candidateCoordinate.second, candidateCoordinate.first + scanWindowWidth, candidateCoordinate.second + scanWindowHeight);
-				
+				Polyline(hdc, points, 5);
+
 							   
 				EndPaint(hWnd, &ps);
 			}
