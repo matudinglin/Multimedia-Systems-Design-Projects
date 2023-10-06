@@ -18,11 +18,13 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <unordered_map>
 
 #define MAX_LOADSTRING 100
 
 // Global Variables:
 MyImage*			inImage;					// image objects
+MyImage*			croppedImage;				// cropped image
 std::vector<MyImage*> objectImages;				// vector of object images
 int imageWidth = 640;							// image width
 int imageHeight = 480;							// image height	
@@ -39,10 +41,9 @@ LRESULT CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 // Object detection parameters
 int scanWindowWidth = 50;
 int scanWindowHeight = 50;
-int scanWindowStepWidth = 50;
-int scanWindowStepHeight = 50;
-std::vector<std::pair<int, int>> candidateCoordinates;
-double threshold = 0.05;
+int scanWindowStepWidth = 10;
+int scanWindowStepHeight = 10;
+std::pair<int, int> candidateCoordinate;
 
 
 // Main entry point for a windows application
@@ -90,8 +91,6 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
 	// Get the histogram of the input image
 	Histogram inputHistogram(inImage);
-	std::cout << "Input image histogram: " << std::endl;
-	std::cout << inputHistogram << std::endl;
 
 	// Get the histogram of each object image
 	std::vector<Histogram> objectHistograms;
@@ -99,21 +98,12 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	{
 		Histogram objectHistogram(objectImages[i]);
 		objectHistograms.push_back(objectHistogram);
-		std::cout << "Object image " << i << " histogram: " << std::endl;
-		std::cout << objectHistogram << std::endl;
 	}
 
-	// Get similarity score between input image and each object image
-	std::vector<double> similarityScores;
-	for (int i = 0; i < objectHistograms.size(); i++)
-	{
-		double similarityScore = getHistogramSimilarity(inputHistogram, objectHistograms[i]);
-		similarityScores.push_back(similarityScore);
-		std::cout << "Similarity score between input image and object image " << i << ": " << similarityScore << std::endl;
-	}
-
+	// For each histogram, get the similarity score between the input image and the object image
 	// Scan through input image and find the object with the highest similarity score
 	// For each scan window, get the histogram and similarity score
+
 	std::vector<double> scanWindowSimilarityScores;
 	std::vector<int> scanWindowXCoordinates;
 	std::vector<int> scanWindowYCoordinates;
@@ -121,20 +111,15 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	{
 		for (int x = 0; x < imageWidth - scanWindowWidth; x += scanWindowStepWidth)
 		{
-			// Get the histogram of the scan window
-			MyImage* scanWindowImage = new MyImage();
-			scanWindowImage->setWidth(scanWindowWidth);
-			scanWindowImage->setHeight(scanWindowHeight);
-			scanWindowImage->setImagePath(inImage->getImagePath());
-			scanWindowImage->setImageData(inImage->getImageData() + (y * imageWidth + x) * 3);
+			// Use the scan window to create a new image
+			MyImage* scanWindowImage = CropImage(inImage, x, y, scanWindowWidth, scanWindowHeight);
 			Histogram scanWindowHistogram(scanWindowImage);
 			// Get the similarity score between the scan window and each object image
 			std::vector<double> scanWindowScores;
-			for (int i = 0; i < objectHistograms.size(); i++)
-			{
-				double scanWindowScore = getHistogramSimilarity(scanWindowHistogram, objectHistograms[i]);
-				scanWindowScores.push_back(scanWindowScore);
-			}
+			double scanWindowScore = getHistogramSimilarity(scanWindowHistogram, objectHistograms[0]);
+			// Print the similarity score at this coordinate
+			std::cout << "Similarity score at (" << x << ", " << y << "): " << scanWindowScore << std::endl;
+			scanWindowScores.push_back(scanWindowScore);
 			// Get the highest similarity score between the scan window and each object image
 			double scanWindowSimilarityScore = *std::max_element(scanWindowScores.begin(), scanWindowScores.end());
 			scanWindowSimilarityScores.push_back(scanWindowSimilarityScore);
@@ -147,18 +132,11 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	// Get the index of the highest similarity score
 	int highestScanWindowSimilarityScoreIndex = std::distance(scanWindowSimilarityScores.begin(), std::max_element(scanWindowSimilarityScores.begin(), scanWindowSimilarityScores.end()));
 	// Add the coordinates of the scan window within the threshold from the highest similarity score to the vector of candidate coordinates
-	for (int i = 0; i < scanWindowSimilarityScores.size(); i++)
-	{
-		if (scanWindowSimilarityScores[i] >= highestScanWindowSimilarityScore - threshold)
-		{
-			candidateCoordinates.push_back(std::make_pair(scanWindowXCoordinates[i], scanWindowYCoordinates[i]));
-			// Print the coordinates and score of the candidate
-			std::cout << "Candidate coordinates: (" << scanWindowXCoordinates[i] << ", " << scanWindowYCoordinates[i] << ")" << std::endl;
-			std::cout << "Candidate score: " << scanWindowSimilarityScores[i] << std::endl;
-			
-		}
-	}
-
+	candidateCoordinate.first = scanWindowXCoordinates[highestScanWindowSimilarityScoreIndex];
+	candidateCoordinate.second = scanWindowYCoordinates[highestScanWindowSimilarityScoreIndex];
+	// Print the coordinates of the candidate
+	std::cout << "Candidate coordinates: (" << candidateCoordinate.first << ", " << candidateCoordinate.second << ")" << std::endl;
+	
 	//----------------------------------------------------------------------------------------------------
 
 
@@ -303,7 +281,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			{
 				hdc = BeginPaint(hWnd, &ps);
 				// TO DO: Add any drawing code here...
-				//char text[1000];
+				//unsigned char text[1000];
 				//strcpy(text, "The original image is shown as follows. \n");
 				//DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
 				//strcpy(text, "\nUpdate program with your code to modify input image. \n");
@@ -325,12 +303,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 								  0,0,0,inImage->getHeight(),
 								  inImage->getImageData(), &bmi, DIB_RGB_COLORS);
 
-				// Draw a rectangle around the candidate coordinates
-				for (int i = 0; i < candidateCoordinates.size(); i++)
-				{
-					Rectangle(hdc, candidateCoordinates[i].first, candidateCoordinates[i].second, candidateCoordinates[i].first + scanWindowWidth, candidateCoordinates[i].second + scanWindowHeight);
-				}
+				//// Draw crop image
+				//bmi.bmiHeader.biWidth = croppedImage->getWidth();
+				//bmi.bmiHeader.biHeight = -croppedImage->getHeight();  // Use negative height.  DIB is top-down.
+				//bmi.bmiHeader.biPlanes = 1;
+				//bmi.bmiHeader.biBitCount = 24;
+				//bmi.bmiHeader.biCompression = BI_RGB;
+				//bmi.bmiHeader.biSizeImage = croppedImage->getWidth()*croppedImage->getHeight();
+				//SetDIBitsToDevice(hdc,
+				//				  0, 20, croppedImage->getWidth(), croppedImage->getHeight(),
+				//				  0, 0, 0, croppedImage->getHeight(),
+				//				  croppedImage->getImageData(), &bmi, DIB_RGB_COLORS);
 
+
+				// Draw a hollow rectangle around the candidate coordinate
+				HPEN hPen = CreatePen(PS_SOLID, 2, RGB(255, 0, 0));
+				SelectObject(hdc, hPen);
+				Rectangle(hdc, candidateCoordinate.first, candidateCoordinate.second, candidateCoordinate.first + scanWindowWidth, candidateCoordinate.second + scanWindowHeight);
+				
 							   
 				EndPaint(hWnd, &ps);
 			}

@@ -7,6 +7,7 @@
 //
 //*****************************************************************************
 
+#pragma once
 #ifndef IMAGE_DISPLAY
 #define IMAGE_DISPLAY
 
@@ -34,7 +35,7 @@ private:
 	int		Width;					// Width of Image
 	int		Height;					// Height of Image
 	char	ImagePath[_MAX_PATH];	// Image location
-	char*   Data;					// RGB data of the image
+	unsigned char*   Data;			// RGB data of the image
 
 public:
 	// Constructor
@@ -50,20 +51,20 @@ public:
 	// Reader & Writer functions
 	void	setWidth(const int w) { Width = w; };
 	void	setHeight(const int h) { Height = h; };
-	void	setImageData(const char* img) { Data = (char*)img; };
+	void	setImageData(unsigned char* data) { Data = data; };
 	void	setImagePath(const char* path) { strcpy(ImagePath, path); }
 	int		getWidth()  const { return Width; };
 	int		getHeight() const { return Height; };
-	char*   getImageData()  const { return Data; };
+	unsigned char*   getImageData()  const { return Data; };
 	const char*   getImagePath() const { return ImagePath; };
 
 	// Input Output operations
 	bool	ReadImage();
 	bool	WriteImage();
 
-	// Modifications
-	bool	Modify();
-
 };
+
+// Crop Image
+MyImage* CropImage(const MyImage* image, int x, int y, int width, int height);
 
 #endif //IMAGE_DISPLAY

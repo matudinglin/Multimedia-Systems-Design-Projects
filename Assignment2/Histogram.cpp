@@ -8,10 +8,10 @@ void RGB2YUV(const MyImage* rgb, MyImage *yuvImage) {
 	int height = rgb->getHeight();
 
 	// Get RGB data
-	char* rgbData = rgb->getImageData();
+	unsigned char* rgbData = rgb->getImageData();
 
 	// Allocate memory for YUV data
-	char* yuvData = new char[width * height * 3];
+	unsigned char* yuvData = new unsigned char[width * height * 3];
 
 	// Convert RGB to YUV
 	for (int i = 0; i < width * height * 3; i += 3) {
@@ -21,9 +21,9 @@ void RGB2YUV(const MyImage* rgb, MyImage *yuvImage) {
 		int b = rgbData[i + 2];
 
 		// Convert RGB to YUV
-		yuvData[i] = (char)(0.299 * r + 0.587 * g + 0.114 * b);
-		yuvData[i + 1] = (char)(-0.147 * r - 0.289 * g + 0.436 * b);
-		yuvData[i + 2] = (char)(0.615 * r - 0.515 * g - 0.100 * b);
+		yuvData[i] = (unsigned char)(0.299 * r + 0.587 * g + 0.114 * b);
+		yuvData[i + 1] = (unsigned char)(-0.147 * r - 0.289 * g + 0.436 * b);
+		yuvData[i + 2] = (unsigned char)(0.615 * r - 0.515 * g - 0.100 * b);
 	}
 
 	// Set YUV data
@@ -36,9 +36,15 @@ Histogram::Histogram(){
 		uvHistogram[0][i] = 0;
 		uvHistogram[1][i] = 0;
 	}
+	imageName = "";
 }
 
 Histogram::Histogram(const MyImage* rgbImage) {
+	// Initialize image name from rgbImage image path
+	std::string imagePath = rgbImage->getImagePath();
+	int lastSlashIndex = imagePath.find_last_of("/");
+	imageName = imagePath.substr(lastSlashIndex + 1);
+
 	// Initialize YUV image
 	MyImage* yuvImage = new MyImage();
 	int width = rgbImage->getWidth();
@@ -56,17 +62,17 @@ Histogram::Histogram(const MyImage* rgbImage) {
 	}
 	
 	// Compute uv histogram
-	char* yuvData = yuvImage->getImageData();
-	char* rgbData = rgbImage->getImageData();
+	unsigned char* yuvData = yuvImage->getImageData();
+	unsigned char* rgbData = rgbImage->getImageData();
 	for (int i = 0; i < width * height * 3; i += 3) {
 		// Check if the pixel is pure green (0, 255, 0 in RGB)
-		if (int(rgbData[i]) == 0 && int(rgbData[i + 1]) == -1 && int(rgbData[i + 2]) == 0) {
+		if (int(rgbData[i]) == 0 && int(rgbData[i + 1]) == 255 && int(rgbData[i + 2]) == 0) {
 			continue;
 		}
 		
 		// Get U and V values in 0-255 range
-		int u = (int)yuvData[i + 1] + 128;
-		int v = (int)yuvData[i + 2] + 128;
+		int u = (int)yuvData[i + 1];
+		int v = (int)yuvData[i + 2];
 
 		// Increment uv histogram
 		uvHistogram[0][u]++;
@@ -114,7 +120,9 @@ double getHistogramSimilarity(const Histogram& aHistogram, const Histogram& bHis
 		bNorm += static_cast<double>(bUVHistogram[0][i]) * static_cast<double>(bUVHistogram[0][i]) +
 			static_cast<double>(bUVHistogram[1][i]) * static_cast<double>(bUVHistogram[1][i]);
 	}
-
+	if (aNorm == 0 || bNorm == 0) {
+		return 0;
+	}
 	// Compute cosine similarity
 	double cosineSimilarity = dotProduct / (sqrt(aNorm) * sqrt(bNorm));
 

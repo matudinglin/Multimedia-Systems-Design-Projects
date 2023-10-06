@@ -6,7 +6,7 @@
 // Code used by students as starter code to display and modify images
 //
 //*****************************************************************************
-
+#pragma once
 #include "Image.h"
 
 // Constructor and Desctructors
@@ -30,7 +30,7 @@ MyImage::MyImage( MyImage *otherImage)
 {
 	Height = otherImage->Height;
 	Width  = otherImage->Width;
-	Data   = new char[Width*Height*3];
+	Data   = new unsigned char[Width*Height*3];
 	strcpy(otherImage->ImagePath, ImagePath );
 
 	for ( int i=0; i<(Height*Width*3); i++ )
@@ -48,7 +48,7 @@ MyImage & MyImage::operator= (const MyImage &otherImage)
 {
 	Height = otherImage.Height;
 	Width  = otherImage.Width;
-	Data   = new char[Width*Height*3];
+	Data   = new unsigned char[Width*Height*3];
 	strcpy( (char *)otherImage.ImagePath, ImagePath );
 
 	for ( int i=0; i<(Height*Width*3); i++ )
@@ -85,9 +85,9 @@ bool MyImage::ReadImage()
 
 	// Create and populate RGB buffers
 	int i;
-	char *Rbuf = new char[Height*Width]; 
-	char *Gbuf = new char[Height*Width]; 
-	char *Bbuf = new char[Height*Width]; 
+	unsigned char *Rbuf = new unsigned char[Height*Width]; 
+	unsigned char *Gbuf = new unsigned char[Height*Width]; 
+	unsigned char *Bbuf = new unsigned char[Height*Width]; 
 
 	for (i = 0; i < Width*Height; i ++)
 	{
@@ -103,7 +103,7 @@ bool MyImage::ReadImage()
 	}
 	
 	// Allocate Data structure and copy
-	Data = new char[Width*Height*3];
+	Data = new unsigned char[Width*Height*3];
 	for (i = 0; i < Height*Width; i++)
 	{
 		Data[3*i]	= Bbuf[i];
@@ -145,9 +145,9 @@ bool MyImage::WriteImage()
 
 	// Create and populate RGB buffers
 	int i;
-	char *Rbuf = new char[Height*Width]; 
-	char *Gbuf = new char[Height*Width]; 
-	char *Bbuf = new char[Height*Width]; 
+	unsigned char *Rbuf = new unsigned char[Height*Width]; 
+	unsigned char *Gbuf = new unsigned char[Height*Width]; 
+	unsigned char *Bbuf = new unsigned char[Height*Width]; 
 
 	for (i = 0; i < Height*Width; i++)
 	{
@@ -181,23 +181,32 @@ bool MyImage::WriteImage()
 
 }
 
+// Create a new image that is a cropped version of the input image
+MyImage* CropImage(const MyImage* image, int x, int y, int width, int height) {
+	// Create a new image
+	MyImage* croppedImage = new MyImage();
+	croppedImage->setWidth(width);
+	croppedImage->setHeight(height);
 
+	// Get image data
+	unsigned char* imageData = image->getImageData();
+	unsigned char* croppedImageData = new unsigned char[width * height * 3];
 
-
-// Here is where you would place your code to modify an image
-// eg Filtering, Transformation, Cropping, etc.
-bool MyImage::Modify()
-{
-
-	// TO DO by student
-	
-	// sample operation
-	for ( int i=0; i<Width*Height; i++ )
-	{
-		Data[3*i] = 0;
-		Data[3*i+1] = 0;
-
+	// Copy cropped image data
+	for (int row = 0; row < height; row++) {
+		for (int col = 0; col < width; col++) {
+			for (int channel = 0; channel < 3; channel++) {
+				int srcX = x + col;
+				int srcY = y + row;
+				int dstIndex = (row * width * 3) + (col * 3) + channel;
+				int srcIndex = (srcY * image->getWidth() * 3) + (srcX * 3) + channel;
+				croppedImageData[dstIndex] = imageData[srcIndex];
+			}
+		}
 	}
 
-	return false;
+	// Set image data
+	croppedImage->setImageData(croppedImageData);
+
+	return croppedImage;
 }
