@@ -44,7 +44,9 @@ int scanWindowHeight = 50;
 int scanWindowStepWidth = 10;
 int scanWindowStepHeight = 10;
 double percentageThreshold = 0.8;
+std::vector<std::pair<int, int>> candidateCoordinates;
 POINT points[5];
+COLORMODE colorMode = YUV;
 
 
 // Main entry point for a windows application
@@ -117,7 +119,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 			Histogram scanWindowHistogram(scanWindowImage);
 			// Get the similarity score between the scan window and each object image
 			std::vector<double> scanWindowScores;
-			double scanWindowScore = getHistogramSimilarity(scanWindowHistogram, objectHistograms[0]);
+			double scanWindowScore = getHistogramSimilarity(scanWindowHistogram, objectHistograms[0], colorMode);
 			scanWindowScores.push_back(scanWindowScore);
 			// Get the highest similarity score between the scan window and each object image
 			double scanWindowSimilarityScore = *std::max_element(scanWindowScores.begin(), scanWindowScores.end());
@@ -131,7 +133,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	// Get the index of the highest similarity score
 	int highestScanWindowSimilarityScoreIndex = std::distance(scanWindowSimilarityScores.begin(), std::max_element(scanWindowSimilarityScores.begin(), scanWindowSimilarityScores.end()));
 	// Add the coordinates of the scan window within the threshold from the highest similarity score to the vector of candidate coordinates
-	std::vector<std::pair<int, int>> candidateCoordinates;
+	
 	for (int i = 0; i < scanWindowSimilarityScores.size(); i++)
 	{
 		if (scanWindowSimilarityScores[i] >= highestScanWindowSimilarityScore * percentageThreshold)
@@ -353,10 +355,29 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				//				  croppedImage->getImageData(), &bmi, DIB_RGB_COLORS);
 
 
-				// Set the color of the pen to Yellow, width = 5
+				//// Set the color of the pen to Yellow, width = 5
+				//HPEN hPen = CreatePen(PS_SOLID, 5, RGB(255, 255, 0));
+				//SelectObject(hdc, hPen);
+				//Polyline(hdc, points, 5);
+
+				// Draw regions in candidate coordinates
 				HPEN hPen = CreatePen(PS_SOLID, 5, RGB(255, 255, 0));
 				SelectObject(hdc, hPen);
-				Polyline(hdc, points, 5);
+				for (int i = 0; i < candidateCoordinates.size(); i++)
+				{
+					POINT points[5];
+					points[0].x = candidateCoordinates[i].first;
+					points[0].y = candidateCoordinates[i].second;
+					points[1].x = candidateCoordinates[i].first + scanWindowWidth;
+					points[1].y = candidateCoordinates[i].second;
+					points[2].x = candidateCoordinates[i].first + scanWindowWidth;
+					points[2].y = candidateCoordinates[i].second + scanWindowHeight;
+					points[3].x = candidateCoordinates[i].first;
+					points[3].y = candidateCoordinates[i].second + scanWindowHeight;
+					points[4].x = candidateCoordinates[i].first;
+					points[4].y = candidateCoordinates[i].second;
+					Polyline(hdc, points, 5);
+				}
 
 							   
 				EndPaint(hWnd, &ps);

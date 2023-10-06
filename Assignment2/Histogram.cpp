@@ -2,13 +2,13 @@
 #include "Image.h"
 
 // Convert RGB image to YUV image
-void RGB2YUV(const MyImage* rgb, MyImage *yuvImage) {
+void RGB2YUV(const MyImage* rgbImage, MyImage* yuvImage) {
 	// Get image width and height
-	int width = rgb->getWidth();
-	int height = rgb->getHeight();
+	int width = rgbImage->getWidth();
+	int height = rgbImage->getHeight();
 
 	// Get RGB data
-	unsigned char* rgbData = rgb->getImageData();
+	unsigned char* rgbData = rgbImage->getImageData();
 
 	// Allocate memory for YUV data
 	unsigned char* yuvData = new unsigned char[width * height * 3];
@@ -30,7 +30,68 @@ void RGB2YUV(const MyImage* rgb, MyImage *yuvImage) {
 	yuvImage->setImageData(yuvData);
 }
 
-Histogram::Histogram(){
+// Convert RGB image to HSV image
+void RGB2HSV(const MyImage* rgbImage, MyImage* hsvImage) {
+	// Get image width and height
+	int width = rgbImage->getWidth();
+	int height = rgbImage->getHeight();
+
+	// Get RGB data
+	unsigned char* rgbData = rgbImage->getImageData();
+
+	// Allocate memory for HSV data
+	unsigned char* hsvData = new unsigned char[width * height * 3];
+
+	// Convert RGB to HSV
+	for (int i = 0; i < width * height * 3; i += 3) {
+		// Get RGB values
+		int r = rgbData[i];
+		int g = rgbData[i + 1];
+		int b = rgbData[i + 2];
+
+		// Normalize RGB values to the range [0, 1]
+		float r_norm = static_cast<float>(r) / 255.0;
+		float g_norm = static_cast<float>(g) / 255.0;
+		float b_norm = static_cast<float>(b) / 255.0;
+
+		// Find the maximum and minimum values among R, G, and B
+		float cmax = max(max(r_norm, g_norm), b_norm);
+		float cmin = min(min(r_norm, g_norm), b_norm);
+
+		// Calculate the difference between the maximum and minimum values
+		float delta = cmax - cmin;
+
+		// Calculate hue (H)
+		float hue = 0.0;
+		if (delta != 0.0) {
+			if (cmax == r_norm)
+				hue = 60.0 * fmod((g_norm - b_norm) / delta, 6.0);
+			else if (cmax == g_norm)
+				hue = 60.0 * ((b_norm - r_norm) / delta + 2.0);
+			else if (cmax == b_norm)
+				hue = 60.0 * ((r_norm - g_norm) / delta + 4.0);
+		}
+
+		if (hue < 0.0)
+			hue += 360.0;
+
+		// Calculate saturation (S)
+		float saturation = (cmax == 0.0) ? 0.0 : (delta / cmax);
+
+		// Calculate value (V)
+		float value = cmax;
+
+		// Scale hue, saturation, and value to appropriate ranges
+		hsvData[i] = static_cast<unsigned char>(hue / 2.0); // Hue is in range [0, 180]
+		hsvData[i + 1] = static_cast<unsigned char>(saturation * 255); // Saturation is in range [0, 255]
+		hsvData[i + 2] = static_cast<unsigned char>(value * 255); // Value is in range [0, 255]
+	}
+
+	// Set HSV data
+	hsvImage->setImageData(hsvData);
+}
+
+Histogram::Histogram() {
 	// Initialize uv histogram
 	for (int i = 0; i < 256; i++) {
 		uvHistogram[0][i] = 0;
@@ -44,42 +105,52 @@ Histogram::Histogram(const MyImage* rgbImage) {
 	std::string imagePath = rgbImage->getImagePath();
 	int lastSlashIndex = imagePath.find_last_of("/");
 	imageName = imagePath.substr(lastSlashIndex + 1);
+	int width = rgbImage->getWidth();
+	int height = rgbImage->getHeight();
+	unsigned char* rgbData = rgbImage->getImageData();
 
 	// Initialize YUV image
 	MyImage* yuvImage = new MyImage();
-	int width = rgbImage->getWidth();
-	int height = rgbImage->getHeight();
 	yuvImage->setWidth(width);
 	yuvImage->setHeight(height);
-
-	// Convert RGB image to YUV image
 	RGB2YUV(rgbImage, yuvImage);
-
-	// Initialize uv histogram
 	for (int i = 0; i < 256; i++) {
 		uvHistogram[0][i] = 0;
 		uvHistogram[1][i] = 0;
 	}
-	
 	// Compute uv histogram
 	unsigned char* yuvData = yuvImage->getImageData();
-	unsigned char* rgbData = rgbImage->getImageData();
 	for (int i = 0; i < width * height * 3; i += 3) {
 		// Check if the pixel is pure green (0, 255, 0 in RGB)
 		if (int(rgbData[i]) == 0 && int(rgbData[i + 1]) == 255 && int(rgbData[i + 2]) == 0) {
 			continue;
 		}
-		
-		// Get U and V values in 0-255 range
 		int u = (int)yuvData[i + 1];
 		int v = (int)yuvData[i + 2];
-
-		// Increment uv histogram
 		uvHistogram[0][u]++;
 		uvHistogram[1][v]++;
 	}
-
 	delete yuvImage;
+
+	// Initalize HSV image
+	MyImage* hsvImage = new MyImage();
+	hsvImage->setWidth(width);
+	hsvImage->setHeight(height);
+	RGB2HSV(rgbImage, hsvImage);
+	for (int i = 0; i < 256; i++) {
+		hHistogram[i] = 0;
+	}
+	// Compute h histogram
+	unsigned char* hsvData = hsvImage->getImageData();
+	for (int i = 0; i < width * height * 3; i += 3) {
+		// Check if the pixel is pure green (0, 255, 0 in RGB)
+		if (int(rgbData[i]) == 0 && int(rgbData[i + 1]) == 255 && int(rgbData[i + 2]) == 0) {
+			continue;
+		}
+		int h = (int)hsvData[i];
+		hHistogram[h]++;
+	}
+	delete hsvImage;
 }
 
 // Override << operator to print histogram
@@ -102,29 +173,57 @@ std::ostream& operator<<(std::ostream& os, const Histogram& histogram) {
 }
 
 // Get color distribution similarity between two histograms using cosine similarity
-double getHistogramSimilarity(const Histogram& aHistogram, const Histogram& bHistogram)
-{
-	// Get U and V histograms
-	std::array<std::array<int, 256>, 2> aUVHistogram = aHistogram.getUVHistogram();
-	std::array<std::array<int, 256>, 2> bUVHistogram = bHistogram.getUVHistogram();
+double getHistogramSimilarity(const Histogram& aHistogram, const Histogram& bHistogram, COLORMODE colorMode){
+	if (colorMode == YUV){
+		// Get U and V histograms
+		std::array<std::array<int, 256>, 2> aUVHistogram = aHistogram.getUVHistogram();
+		std::array<std::array<int, 256>, 2> bUVHistogram = bHistogram.getUVHistogram();
 
-	// Compute dot product
-	double dotProduct = 0;
-	double aNorm = 0;
-	double bNorm = 0;
-	for (int i = 0; i < 256; i++) {
-		dotProduct += static_cast<double>(aUVHistogram[0][i]) * static_cast<double>(bUVHistogram[0][i]) +
-			static_cast<double>(aUVHistogram[1][i]) * static_cast<double>(bUVHistogram[1][i]);
-		aNorm += static_cast<double>(aUVHistogram[0][i]) * static_cast<double>(aUVHistogram[0][i]) +
-			static_cast<double>(aUVHistogram[1][i]) * static_cast<double>(aUVHistogram[1][i]);
-		bNorm += static_cast<double>(bUVHistogram[0][i]) * static_cast<double>(bUVHistogram[0][i]) +
-			static_cast<double>(bUVHistogram[1][i]) * static_cast<double>(bUVHistogram[1][i]);
-	}
-	if (aNorm == 0 || bNorm == 0) {
-		return 0;
-	}
-	// Compute cosine similarity
-	double cosineSimilarity = dotProduct / (sqrt(aNorm) * sqrt(bNorm));
+		// Compute dot product
+		double dotProduct = 0;
+		double aNorm = 0;
+		double bNorm = 0;
+		for (int i = 0; i < 256; i++) {
+			dotProduct += static_cast<double>(aUVHistogram[0][i]) * static_cast<double>(bUVHistogram[0][i]) +
+				static_cast<double>(aUVHistogram[1][i]) * static_cast<double>(bUVHistogram[1][i]);
+			aNorm += static_cast<double>(aUVHistogram[0][i]) * static_cast<double>(aUVHistogram[0][i]) +
+				static_cast<double>(aUVHistogram[1][i]) * static_cast<double>(aUVHistogram[1][i]);
+			bNorm += static_cast<double>(bUVHistogram[0][i]) * static_cast<double>(bUVHistogram[0][i]) +
+				static_cast<double>(bUVHistogram[1][i]) * static_cast<double>(bUVHistogram[1][i]);
+		}
+		// Check for division by zero
+		if (aNorm == 0 || bNorm == 0) {
+			return 0;
+		}
+		// Compute cosine similarity
+		double cosineSimilarity = dotProduct / (sqrt(aNorm) * sqrt(bNorm));
 
-	return cosineSimilarity;
+		return cosineSimilarity;
+	}
+	else if (colorMode == HSV){
+		// Get H histograms
+		std::array<int, 256> aHHistogram = aHistogram.getHHistogram();
+		std::array<int, 256> bHHistogram = bHistogram.getHHistogram();
+		
+		// Compute dot product
+		double dotProduct = 0;
+		double aNorm = 0;
+		double bNorm = 0;
+		for (int i = 0; i < 256; i++) {
+			dotProduct += static_cast<double>(aHHistogram[i]) * static_cast<double>(bHHistogram[i]);
+			aNorm += static_cast<double>(aHHistogram[i]) * static_cast<double>(aHHistogram[i]);
+			bNorm += static_cast<double>(bHHistogram[i]) * static_cast<double>(bHHistogram[i]);
+		}
+		// Check for division by zero
+		if (aNorm == 0 || bNorm == 0) {
+			return 0;
+		}
+		// Compute cosine similarity
+		double cosineSimilarity = dotProduct / (sqrt(aNorm) * sqrt(bNorm));
+
+		return cosineSimilarity;
+	}
+	else if (colorMode == BOTH){
+
+	}
 }
