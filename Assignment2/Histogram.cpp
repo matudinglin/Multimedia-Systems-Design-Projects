@@ -82,7 +82,7 @@ void RGB2HSV(const MyImage* rgbImage, MyImage* hsvImage) {
 		float value = cmax;
 
 		// Scale hue, saturation, and value to appropriate ranges
-		hsvData[i] = static_cast<unsigned char>(hue / 2.0); // Hue is in range [0, 180]
+		hsvData[i] = static_cast<unsigned char>((hue / 360.0) * 255); // Hue is in range [0, 255]
 		hsvData[i + 1] = static_cast<unsigned char>(saturation * 255); // Saturation is in range [0, 255]
 		hsvData[i + 2] = static_cast<unsigned char>(value * 255); // Value is in range [0, 255]
 	}
@@ -130,6 +130,28 @@ Histogram::Histogram(const MyImage* rgbImage) {
 		uvHistogram[0][u]++;
 		uvHistogram[1][v]++;
 	}
+	// Get max U and V number in uv histogram
+	int maxUNumber = 0;
+	int maxVNumber = 0;
+	for (int i = 0; i < 256; i++) {
+		if (uvHistogram[0][i] > maxUNumber) {
+			maxUNumber = uvHistogram[0][i];
+		}
+		if (uvHistogram[1][i] > maxVNumber) {
+			maxVNumber = uvHistogram[1][i];
+		}
+	}
+	// Delete pixels that are not in the top 10% of the histogram
+	int uThreshold = maxUNumber * 0.1;
+	int vThreshold = maxVNumber * 0.1;
+	for (int i = 0; i < 256; i++) {
+		if (uvHistogram[0][i] < uThreshold) {
+			uvHistogram[0][i] = 0;
+		}
+		if (uvHistogram[1][i] < vThreshold) {
+			uvHistogram[1][i] = 0;
+		}
+	}
 	delete yuvImage;
 
 	// Initalize HSV image
@@ -149,6 +171,20 @@ Histogram::Histogram(const MyImage* rgbImage) {
 		}
 		int h = (int)hsvData[i];
 		hHistogram[h]++;
+	}
+	// Get max H number in h histogram
+	int maxHNumber = 0;
+	for (int i = 0; i < 256; i++) {
+		if (hHistogram[i] > maxHNumber) {
+			maxHNumber = hHistogram[i];
+		}
+	}
+	// Delete pixels that are not in the top 10% of the histogram
+	int hThreshold = maxHNumber * 0.1;
+	for (int i = 0; i < 256; i++) {
+		if (hHistogram[i] < hThreshold) {
+			hHistogram[i] = 0;
+		}
 	}
 	delete hsvImage;
 }
@@ -227,3 +263,4 @@ double getHistogramSimilarity(const Histogram& aHistogram, const Histogram& bHis
 
 	}
 }
+
