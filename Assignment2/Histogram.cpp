@@ -264,3 +264,71 @@ double getHistogramSimilarity(const Histogram& aHistogram, const Histogram& bHis
 	}
 }
 
+// Get pixel similarity between an image and a histogram
+double getPixelSimilarity(const MyImage* image, const Histogram& histogram) {
+	// Get image data
+	int width = image->getWidth();
+	int height = image->getHeight();
+	unsigned char* imageData = image->getImageData();
+	// Get U and V histograms
+	std::array<std::array<int, 256>, 2> uvHistogram = histogram.getUVHistogram();
+
+	// Compute pixel similarity
+	int pixelCount = 0;
+	for (int row = 0; row < height; row++)
+	{
+		for (int col = 0; col < width; col++)
+		{
+			// Get the pixel rgb value
+			unsigned char r, g, b;
+			r = imageData[(row * width * 3) + (col * 3) + 2];
+			g = imageData[(row * width * 3) + (col * 3) + 1];
+			b = imageData[(row * width * 3) + (col * 3) + 0];
+			// Convert rgb to uv
+			unsigned char u, v;
+			u = (unsigned char)(-0.14713 * r - 0.28886 * g + 0.436 * b);
+			v = (unsigned char)(0.615 * r - 0.51499 * g - 0.10001 * b);
+
+			// Check if the pixel uv value is inside the histogram of the object image
+			int offset = 3;
+			for (int i = 0; i < offset; ++i)
+			{
+				int uOffset = u + i;
+				int vOffset = v + i;
+				// Clamp to [0-255]
+				if (uOffset > 255){
+					uOffset = 255;
+				}
+				if (vOffset > 255){
+					vOffset = 255;
+				}
+				int uOffset2 = u - i;
+				int vOffset2 = v - i;
+				// Clamp to [0-255]
+				if (uOffset2 < 0){
+					uOffset2 = 0;
+				}
+				if (vOffset2 < 0){
+					vOffset2 = 0;
+				}
+				if (uvHistogram[0][uOffset] > 0 && uvHistogram[1][vOffset] > 0 ||
+					uvHistogram[0][uOffset2] > 0 && uvHistogram[1][vOffset2] > 0)
+				{
+					pixelCount++;
+
+					// black the pixel
+					//imageData[(row * width * 3) + (col * 3) + 0] = 0;
+					//imageData[(row * width * 3) + (col * 3) + 1] = 0;
+					//imageData[(row * width * 3) + (col * 3) + 2] = 0;
+
+					break;
+				}
+
+			}
+		}
+	}
+
+	double pixelSimilarity = static_cast<double>(pixelCount) / static_cast<double>(width * height);
+
+	return pixelSimilarity;
+}

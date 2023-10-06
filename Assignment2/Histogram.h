@@ -31,6 +31,7 @@ public:
 };
 
 double getHistogramSimilarity(const Histogram& aHistogram, const Histogram& bHistogram, COLORMODE colorMode);
+double getPixelSimilarity(const MyImage* image, const Histogram& histogram);
 void RGB2YUV(const MyImage* rgbImage, MyImage* yuvImage);
 void YUV2RGB(const MyImage* yuvImage, MyImage* rgbImage);
 
