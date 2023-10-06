@@ -16,9 +16,9 @@ void RGB2YUV(const MyImage* rgbImage, MyImage* yuvImage) {
 	// Convert RGB to YUV
 	for (int i = 0; i < width * height * 3; i += 3) {
 		// Get RGB values
-		int r = rgbData[i];
+		int b = rgbData[i];
 		int g = rgbData[i + 1];
-		int b = rgbData[i + 2];
+		int r = rgbData[i + 2];
 
 		// Convert RGB to YUV
 		yuvData[i] = (unsigned char)(0.299 * r + 0.587 * g + 0.114 * b);
