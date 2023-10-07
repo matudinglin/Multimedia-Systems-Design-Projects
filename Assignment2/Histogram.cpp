@@ -313,10 +313,10 @@ double getPixelSimilarity(const MyImage* image, const Histogram& histogram) {
 				{
 					pixelCount++;
 
-					// black the pixel
-					imageData[i] = 0;
-					imageData[i + 1] = 0;
-					imageData[i + 2] = 0;
+					//// black the pixel
+					//imageData[i] = 0;
+					//imageData[i + 1] = 0;
+					//imageData[i + 2] = 0;
 
 					flag = true;
 					break;
