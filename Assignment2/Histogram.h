@@ -28,6 +28,7 @@ public:
 	friend std::ostream& operator<<(std::ostream& os, const Histogram& histogram);
 	std::array<std::array<int, 256>, 2> getUVHistogram() const { return uvHistogram; };
 	std::array<int, 256> getHHistogram() const { return hHistogram; };
+	std::string getImageName() const { return imageName; };
 };
 
 double getHistogramSimilarity(const Histogram& aHistogram, const Histogram& bHistogram, COLORMODE colorMode);

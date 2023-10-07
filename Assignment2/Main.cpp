@@ -44,12 +44,11 @@ int scanWindowHeight = 50;
 int scanWindowStepWidth = 10;
 int scanWindowStepHeight = 10;
 double percentageThreshold = 0.8;
-std::vector<POINT> candidateCoordinates;
-std::vector<std::array<POINT, 5>> resultCoordinates;
+std::vector<std::pair<std::string,std::array<POINT, 5>>> resultCoordinates;
 COLORMODE colorMode = YUV;
 
 // Use BFS to combine the candidate regions to a single region, assign to the points array
-void bfsClustering()
+void bfsClustering(const std::string &name, const std::vector<POINT> &candidateCoordinates)
 {
 	std::unordered_map<int, std::unordered_map<int, bool>> visited;
 	// Initialize visited array
@@ -113,7 +112,7 @@ void bfsClustering()
 			points[3].y = maxY;
 			points[4].x = minX;
 			points[4].y = minY;
-			resultCoordinates.push_back(points);
+			resultCoordinates.push_back({ name,points });
 		}
 	}
 }
@@ -163,7 +162,6 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
 	// Get the histogram of the input image
 	Histogram inputHistogram(inImage);
-
 	// Get the histogram of each object image
 	std::vector<Histogram> objectHistograms;
 	for (int i = 0; i < objectImages.size(); i++)
@@ -175,46 +173,51 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	// For each histogram, get the similarity score between the input image and the object image
 	// Scan through input image and find the object with the highest similarity score
 	// For each scan window, get the histogram and similarity score
-	std::vector<double> scanWindowSimilarityScores;
-	std::vector<int> scanWindowXCoordinates;
-	std::vector<int> scanWindowYCoordinates;
-	for (int y = 0; y < imageHeight - scanWindowHeight; y += scanWindowStepHeight)
+	for (int i = 0; i < objectImages.size(); i++)
 	{
-		for (int x = 0; x < imageWidth - scanWindowWidth; x += scanWindowStepWidth)
+		std::vector<double> scanWindowSimilarityScores;
+		std::vector<int> scanWindowXCoordinates;
+		std::vector<int> scanWindowYCoordinates;
+		for (int y = 0; y < imageHeight - scanWindowHeight; y += scanWindowStepHeight)
 		{
-			// Use the scan window to create a new image
-			MyImage* scanWindowImage = CropImage(inImage, x, y, scanWindowWidth, scanWindowHeight);
-			Histogram scanWindowHistogram(scanWindowImage);
-			// Get the similarity score between the scan window and each object image
-			std::vector<double> scanWindowScores;
-			double scanWindowScore = getHistogramSimilarity(scanWindowHistogram, objectHistograms[0], colorMode);
-			double pixelSimilarity = getPixelSimilarity(scanWindowImage, objectHistograms[0]);
-			scanWindowScores.push_back(scanWindowScore + pixelSimilarity);
-			// Get the highest similarity score between the scan window and each object image
-			double scanWindowSimilarityScore = *std::max_element(scanWindowScores.begin(), scanWindowScores.end());
-			scanWindowSimilarityScores.push_back(scanWindowSimilarityScore);
-			scanWindowXCoordinates.push_back(x);
-			scanWindowYCoordinates.push_back(y);
-			delete scanWindowImage;
+			for (int x = 0; x < imageWidth - scanWindowWidth; x += scanWindowStepWidth)
+			{
+				// Use the scan window to create a new image
+				MyImage* scanWindowImage = CropImage(inImage, x, y, scanWindowWidth, scanWindowHeight);
+				Histogram scanWindowHistogram(scanWindowImage);
+				// Get the similarity score between the scan window and each object image
+				std::vector<double> scanWindowScores;
+				double scanWindowScore = getHistogramSimilarity(scanWindowHistogram, objectHistograms[i], colorMode);
+				double pixelSimilarity = getPixelSimilarity(scanWindowImage, objectHistograms[i]);
+				scanWindowScores.push_back(scanWindowScore + pixelSimilarity);
+				// Get the highest similarity score between the scan window and each object image
+				double scanWindowSimilarityScore = *std::max_element(scanWindowScores.begin(), scanWindowScores.end());
+				scanWindowSimilarityScores.push_back(scanWindowSimilarityScore);
+				scanWindowXCoordinates.push_back(x);
+				scanWindowYCoordinates.push_back(y);
+				delete scanWindowImage;
+			}
 		}
-	}
 
-	// Get the highest similarity score between the scan window and each object image
-	double highestScanWindowSimilarityScore = *std::max_element(scanWindowSimilarityScores.begin(), scanWindowSimilarityScores.end());
-	// Get the index of the highest similarity score
-	int highestScanWindowSimilarityScoreIndex = std::distance(scanWindowSimilarityScores.begin(), std::max_element(scanWindowSimilarityScores.begin(), scanWindowSimilarityScores.end()));
-	
-	// Add the coordinates of the scan window within the threshold from the highest similarity score to the vector of candidate coordinates
-	for (int i = 0; i < scanWindowSimilarityScores.size(); i++)
-	{
-		if (scanWindowSimilarityScores[i] >= highestScanWindowSimilarityScore * percentageThreshold)
+		// Get the highest similarity score between the scan window and each object image
+		double highestScanWindowSimilarityScore = *std::max_element(scanWindowSimilarityScores.begin(), scanWindowSimilarityScores.end());
+		// Get the index of the highest similarity score
+		int highestScanWindowSimilarityScoreIndex = std::distance(scanWindowSimilarityScores.begin(), std::max_element(scanWindowSimilarityScores.begin(), scanWindowSimilarityScores.end()));
+
+		// Add the coordinates of the scan window within the threshold from the highest similarity score to the vector of candidate coordinates
+		std::vector<POINT> candidateCoordinates;
+		for (int i = 0; i < scanWindowSimilarityScores.size(); i++)
 		{
-			candidateCoordinates.push_back({ scanWindowXCoordinates[i], scanWindowYCoordinates[i] });
+			if (scanWindowSimilarityScores[i] >= highestScanWindowSimilarityScore * percentageThreshold)
+			{
+				candidateCoordinates.push_back({ scanWindowXCoordinates[i], scanWindowYCoordinates[i] });
+			}
 		}
+
+		// Combine the candidate regions to a single region
+		bfsClustering(objectHistograms[i].getImageName(), candidateCoordinates);
 	}
 	
-	// Combine the candidate regions to a single region
-	bfsClustering();
 
 	//----------------------------------------------------------------------------------------------------
 
@@ -382,38 +385,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 								  0,0,0,inImage->getHeight(),
 								  inImage->getImageData(), &bmi, DIB_RGB_COLORS);
 
-				//// Draw candidate coordinates
-				//HPEN hPen2 = CreatePen(PS_SOLID, 5, RGB(0, 255, 0));
-				//SelectObject(hdc, hPen2);
-				//for (int i = 0; i < candidateCoordinates.size(); i++)
-				//{
-				//	POINT points[5];
-				//	points[0].x = candidateCoordinates[i].x;
-				//	points[0].y = candidateCoordinates[i].y;
-				//	points[1].x = candidateCoordinates[i].x + scanWindowWidth;
-				//	points[1].y = candidateCoordinates[i].y;
-				//	points[2].x = candidateCoordinates[i].x + scanWindowWidth;
-				//	points[2].y = candidateCoordinates[i].y + scanWindowHeight;
-				//	points[3].x = candidateCoordinates[i].x;
-				//	points[3].y = candidateCoordinates[i].y + scanWindowHeight;
-				//	points[4].x = candidateCoordinates[i].x;
-				//	points[4].y = candidateCoordinates[i].y;
-				//	Polyline(hdc, points, 5);
-				//}
-
-
 				// Draw regions in result coordinates
 				HPEN hPen = CreatePen(PS_SOLID, 5, RGB(0, 0, 0));
 				SelectObject(hdc, hPen);
 				for (int i = 0; i < resultCoordinates.size(); i++)
 				{
-					Polyline(hdc, resultCoordinates[i].data(), 5);
+					Polyline(hdc, resultCoordinates[i].second.data(), 5);
+					// Draw the name of the histogram
+					std::string name = resultCoordinates[i].first;
+					TextOut(hdc, resultCoordinates[i].second[0].x, resultCoordinates[i].second[0].y, name.c_str(), name.length());
 				}
-
-
-				
-
-							   
+	   
 				EndPaint(hWnd, &ps);
 			}
 			break;
