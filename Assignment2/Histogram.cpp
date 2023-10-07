@@ -16,14 +16,24 @@ void RGB2YUV(const MyImage* rgbImage, MyImage* yuvImage) {
 	// Convert RGB to YUV
 	for (int i = 0; i < width * height * 3; i += 3) {
 		// Get RGB values
-		int b = rgbData[i];
-		int g = rgbData[i + 1];
-		int r = rgbData[i + 2];
+		unsigned char b = rgbData[i];
+		unsigned char g = rgbData[i + 1];
+		unsigned char r = rgbData[i + 2];
+
+		unsigned char y, u, v;
+		y = 0.299 * r + 0.587 * g + 0.114 * b;
+		u = -0.147 * r - 0.289 * g + 0.436 * b;
+		v = 0.615 * r - 0.515 * g - 0.100 * b;
+
+		// Clamp to [0, 255]
+		y = min(max(y, 0), 255);
+		u = min(max(u, 0), 255);
+		v = min(max(v, 0), 255);
 
 		// Convert RGB to YUV
-		yuvData[i] = (unsigned char)(0.299 * r + 0.587 * g + 0.114 * b);
-		yuvData[i + 1] = (unsigned char)(-0.147 * r - 0.289 * g + 0.436 * b);
-		yuvData[i + 2] = (unsigned char)(0.615 * r - 0.515 * g - 0.100 * b);
+		yuvData[i] = y;
+		yuvData[i + 1] = u;
+		yuvData[i + 2] = v;
 	}
 
 	// Set YUV data
@@ -125,8 +135,8 @@ Histogram::Histogram(const MyImage* rgbImage) {
 		if (int(rgbData[i]) == 0 && int(rgbData[i + 1]) == 255 && int(rgbData[i + 2]) == 0) {
 			continue;
 		}
-		int u = (int)yuvData[i + 1];
-		int v = (int)yuvData[i + 2];
+		unsigned char u = yuvData[i + 1];
+		unsigned char v = yuvData[i + 2];
 		uvHistogram[0][u]++;
 		uvHistogram[1][v]++;
 	}
@@ -275,55 +285,46 @@ double getPixelSimilarity(const MyImage* image, const Histogram& histogram) {
 
 	// Compute pixel similarity
 	int pixelCount = 0;
-	for (int row = 0; row < height; row++)
-	{
-		for (int col = 0; col < width; col++)
-		{
-			// Get the pixel rgb value
-			unsigned char r, g, b;
-			r = imageData[(row * width * 3) + (col * 3) + 2];
-			g = imageData[(row * width * 3) + (col * 3) + 1];
-			b = imageData[(row * width * 3) + (col * 3) + 0];
-			// Convert rgb to uv
-			unsigned char u, v;
-			u = (unsigned char)(-0.14713 * r - 0.28886 * g + 0.436 * b);
-			v = (unsigned char)(0.615 * r - 0.51499 * g - 0.10001 * b);
+	for (int i = 0; i < width * height * 3; i += 3) {
+		// Get the pixel rgb value
+		unsigned char r, g, b;
+		b = imageData[i];
+		g = imageData[i + 1];
+		r = imageData[i + 2];
 
-			// Check if the pixel uv value is inside the histogram of the object image
-			int offset = 3;
-			for (int i = 0; i < offset; ++i)
+		// Convert rgb to uv
+		unsigned char u, v;
+		u = -0.147 * r - 0.289 * g + 0.436 * b;
+		v = 0.615 * r - 0.515 * g - 0.100 * b;
+		// Clamp to [0, 255]
+		u = min(max(u, 0), 255);
+		v = min(max(v, 0), 255);
+
+		// Check if the pixel uv value is inside the histogram of the object image
+		int maxOffset = 5;
+		int flag = false;
+		for(int uOffset = -maxOffset; uOffset <= maxOffset; uOffset++)
+		{
+			for (int vOffset = -maxOffset; vOffset <= maxOffset; vOffset++)
 			{
-				int uOffset = u + i;
-				int vOffset = v + i;
-				// Clamp to [0-255]
-				if (uOffset > 255){
-					uOffset = 255;
-				}
-				if (vOffset > 255){
-					vOffset = 255;
-				}
-				int uOffset2 = u - i;
-				int vOffset2 = v - i;
-				// Clamp to [0-255]
-				if (uOffset2 < 0){
-					uOffset2 = 0;
-				}
-				if (vOffset2 < 0){
-					vOffset2 = 0;
-				}
-				if (uvHistogram[0][uOffset] > 0 && uvHistogram[1][vOffset] > 0 ||
-					uvHistogram[0][uOffset2] > 0 && uvHistogram[1][vOffset2] > 0)
+				int newU = min(max(u + uOffset, 0), 255);
+				int newV = min(max(v + vOffset, 0), 255);
+				if (uvHistogram[0][newU] > 0 && uvHistogram[1][newV] > 0)
 				{
 					pixelCount++;
 
 					// black the pixel
-					//imageData[(row * width * 3) + (col * 3) + 0] = 0;
-					//imageData[(row * width * 3) + (col * 3) + 1] = 0;
-					//imageData[(row * width * 3) + (col * 3) + 2] = 0;
+					imageData[i] = 0;
+					imageData[i + 1] = 0;
+					imageData[i + 2] = 0;
 
+					flag = true;
 					break;
 				}
-
+			}
+			if (flag)
+			{
+				break;
 			}
 		}
 	}
