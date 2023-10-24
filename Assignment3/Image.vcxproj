@@ -125,10 +125,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DWTCompression.cpp" />
     <ClCompile Include="Image.cpp" />
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DWTCompression.h" />
     <ClInclude Include="Image.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="StdAfx.h" />

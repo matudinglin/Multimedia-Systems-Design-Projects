@@ -14,14 +14,22 @@
 // Include class files
 #include "Image.h"
 #include <iostream>
+#include <string>
+#include <sstream>
+#include <vector>
+#include "DWTCompression.h"
 
 #define MAX_LOADSTRING 100
 
 // Global Variables:
-MyImage			inImage;						// image objects
+const int imageWidth  = 512;					// Image width
+const int imageHeight = 512;					// Image height	
+MyImage*		inImage;						// input image objects
+MyImage* 		outImage;						// compressed image object
 HINSTANCE		hInst;							// current instance
 TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];			// The title bar text
+int compLevel;									// Level of DWT compression
 
 // Foward declarations of functions included in this code module:
 ATOM				MyRegisterClass(HINSTANCE hInstance);
@@ -43,27 +51,33 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	AllocConsole();
 	freopen("CONOUT$", "w", stdout);
 
-	// The rest of command line argument is truncated.
-	// If you want to use it, please modify the code.
-	if (lpCmdLine[0] == 0) {
-		wprintf(L"No command line arguement.");
-		return -1;
+	// Parse and get arguments
+	std::string cmdLine(lpCmdLine);
+	std::stringstream ss(cmdLine);
+	std::string arg;
+	std::vector<std::string> args;
+	while (getline(ss, arg, ' '))
+	{
+		args.push_back(arg);
 	}
-	int cnt=0;
-	while (lpCmdLine[cnt]!= ' '&& lpCmdLine[cnt] !=0) {
-		cnt++;
-	}
-	lpCmdLine[cnt] = 0;
-	printf("The first parameter was: %s", lpCmdLine);
 
 	// Set up the images
-	int w = 1920;
-	int h = 1080;
-	inImage.setWidth(w);
-	inImage.setHeight(h);
+	inImage = new MyImage();
+	inImage->setWidth(imageWidth);
+	inImage->setHeight(imageHeight);
+	inImage->setImagePath(args[0].c_str());
+	inImage->ReadImage();
 
-	inImage.setImagePath(lpCmdLine);
-	inImage.ReadImage();
+	// Get the compression level
+	if (args.size() > 1) {
+		compLevel = atoi(args[1].c_str());
+		std::cout << "Compression level: " << compLevel << std::endl;
+	}
+	
+	// Perform DWT compression
+	DWTCompression dwt(inImage, compLevel);
+	dwt.compress();
+	outImage = dwt.getCompressedImage();
 
 	// Initialize global strings
 	LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -204,28 +218,29 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case WM_PAINT:
 			{
 				hdc = BeginPaint(hWnd, &ps);
-				// TO DO: Add any drawing code here...
-				char text[1000];
-				strcpy(text, "The original image is shown as follows. \n");
-				DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
-				strcpy(text, "\nUpdate program with your code to modify input image. \n");
-				DrawText(hdc, text, strlen(text), &rt, DT_LEFT);
 
 				BITMAPINFO bmi;
 				CBitmap bitmap;
 				memset(&bmi,0,sizeof(bmi));
 				bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
-				bmi.bmiHeader.biWidth = inImage.getWidth();
-				bmi.bmiHeader.biHeight = -inImage.getHeight();  // Use negative height.  DIB is top-down.
+				bmi.bmiHeader.biWidth = inImage->getWidth();
+				bmi.bmiHeader.biHeight = -inImage->getHeight();  // Use negative height.  DIB is top-down.
 				bmi.bmiHeader.biPlanes = 1;
 				bmi.bmiHeader.biBitCount = 24;
 				bmi.bmiHeader.biCompression = BI_RGB;
-				bmi.bmiHeader.biSizeImage = inImage.getWidth()*inImage.getHeight();
+				bmi.bmiHeader.biSizeImage = inImage->getWidth()*inImage->getHeight();
 
+				// Display the input image on left pane
 				SetDIBitsToDevice(hdc,
-								  0,100,inImage.getWidth(),inImage.getHeight(),
-								  0,0,0,inImage.getHeight(),
-								  inImage.getImageData(),&bmi,DIB_RGB_COLORS);
+								  0,0,inImage->getWidth(),inImage->getHeight(),
+								  0,0,0,inImage->getHeight(),
+								  inImage->getImageData(),&bmi,DIB_RGB_COLORS);
+
+				// Display the compressed image on right pane
+				SetDIBitsToDevice(hdc,
+								  inImage->getWidth() + 50,0,outImage->getWidth(),outImage->getHeight(),
+								  0,0,0,outImage->getHeight(),
+								  outImage->getImageData(),&bmi,DIB_RGB_COLORS);
 							   
 				EndPaint(hWnd, &ps);
 			}
