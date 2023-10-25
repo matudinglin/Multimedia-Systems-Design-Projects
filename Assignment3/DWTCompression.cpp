@@ -15,12 +15,19 @@ DWTCompression::DWTCompression(MyImage* originalImage, int level) : originalImag
 
 // Compression
 void DWTCompression::compress() {
-    for (int channel = 0; channel < 3; channel++) {
-        unsigned char* channelData = extractChannel(originalImage, channel);
-        forwardDWT(channelData, 9);
-        mergeChannel(compressedImage, channelData, channel);
-        delete[] channelData; // Free up the memory allocated in extractChannel.
-    }
+    int size = compressedImage->getWidth();
+    for (int i = 0; i < 9 - level; ++i) {
+        for (int channel = 0; channel < 3; channel++) {
+            unsigned char* channelData = extractChannel(originalImage, channel);
+            forwardDWT(channelData, size);
+            mergeChannel(compressedImage, channelData, channel);
+            delete[] channelData;
+        }
+        // Copy data from compressedImage to originalImage
+        for (int j = 0; j < size * size * 3; ++j) {
+			originalImage->getImageData()[j] = compressedImage->getImageData()[j];
+		}
+	}
 }
 
 void DWTCompression::decompress() {
@@ -33,44 +40,50 @@ void DWTCompression::decompress() {
     }
 }
 
-void DWTCompression::forwardDWT(unsigned char* channelData, int currentLevel) {
-    if (currentLevel <= level) return;
-
-    int size = compressedImage->getWidth(); // Assuming square image
+void DWTCompression::forwardDWT(unsigned char* channelData, int size) {
+    // Temporary buffers to store the transformed values
+    double* tempRow = new double[size];
+    double* tempCol = new double[size];
 
     // Applying Haar DWT on rows
-    for (int i = 0; i < size; i++) {
-        for (int j = 0; j < size; j += 2) {
-            unsigned char a = channelData[i * size + j];
-            unsigned char b = channelData[i * size + j + 1];
+    for (int i = 0; i < size; ++i) {
+        for (int j = 0; j < size / 2; ++j) {
+            int index1 = i * size + 2 * j;
+            int index2 = index1 + 1;
 
-            // Calculate average and difference
-            int avg = (static_cast<int>(a) + static_cast<int>(b)) / 2;
-            int diff = static_cast<int>(a) - static_cast<int>(b);
+            double a = static_cast<double>(channelData[index1]);
+            double b = static_cast<double>(channelData[index2]);
 
-            // Store results
-            channelData[i * size + j / 2] = clip(avg);
-            channelData[i * size + size / 2 + j / 2] = clip(diff);
+            tempRow[j] = (a + b) / 2.0;
+            tempRow[size / 2 + j] = a - b;
+        }
+        // Copy back to channelData with clipping and rounding
+        for (int j = 0; j < size; ++j) {
+            channelData[i * size + j] = clip(std::round(tempRow[j]));
         }
     }
 
-    // Apply DWT to columns
-    for (int j = 0; j < size; j++) {
-        for (int i = 0; i < size; i += 2) {
-            unsigned char a = channelData[i * size + j];
-            unsigned char b = channelData[(i + 1) * size + j];
+    // Applying Haar DWT on columns
+    for (int j = 0; j < size; ++j) {
+        for (int i = 0; i < size / 2; ++i) {
+            int index1 = 2 * i * size + j;
+            int index2 = (2 * i + 1) * size + j;
 
-            int avg = (static_cast<int>(a) + static_cast<int>(b)) / 2;
-            int diff = static_cast<int>(a) - static_cast<int>(b);
+            double a = static_cast<double>(channelData[index1]);
+            double b = static_cast<double>(channelData[index2]);
 
-            channelData[j + (i / 2) * size] = clip(avg);
-            channelData[j + (size / 2 + i / 2) * size] = clip(diff);
+            tempCol[i] = (a + b) / 2.0;
+            tempCol[size / 2 + i] = a - b;
+        }
+        // Copy back to channelData with clipping and rounding
+        for (int i = 0; i < size; ++i) {
+            channelData[i * size + j] = clip(std::round(tempCol[i]));
         }
     }
 
-
-    // Recurse on the low-pass coefficients
-    forwardDWT(channelData, currentLevel - 1);
+    // Free up the allocated memory
+    delete[] tempRow;
+    delete[] tempCol;
 }
 
 void DWTCompression::inverseDWT(unsigned char* channelData, int currentLevel) {

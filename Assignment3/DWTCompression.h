@@ -24,7 +24,7 @@ public:
     void decompress();
     unsigned char* extractChannel(MyImage* image, int channel);
     void mergeChannel(MyImage* image, unsigned char* channelData, int channel);
-    void forwardDWT(unsigned char* channelData, int currentLevel);
+    void forwardDWT(unsigned char* channelData, int size);
     void inverseDWT(unsigned char* channelData, int currentLevel);
     void zeroOutHighPassCoefficients(unsigned char* channelData, int targetLevel);
 
