@@ -29,7 +29,7 @@ MyImage* 		outImage;						// compressed image object
 HINSTANCE		hInst;							// current instance
 TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];			// The title bar text
-int compLevel;									// Level of DWT compression
+int level;									    // Level of DWT compression
 
 // Foward declarations of functions included in this code module:
 ATOM				MyRegisterClass(HINSTANCE hInstance);
@@ -70,14 +70,23 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
 	// Get the compression level
 	if (args.size() > 1) {
-		compLevel = atoi(args[1].c_str());
-		std::cout << "Compression level: " << compLevel << std::endl;
+		level = atoi(args[1].c_str());
+		std::cout << "Compression level: " << level << std::endl;
 	}
 	
-	// Perform DWT compression
-	DWTCompression dwt(inImage, compLevel);
-	dwt.compress();
-	outImage = dwt.getCompressedImage();
+	if (level != -1)
+	{
+		// Perform DWT compression
+		DWTCompression dwt(inImage, level);
+		dwt.compress();
+		//dwt.decompress();
+		outImage = dwt.getCompressedImage();
+	}
+	else
+	{
+
+	}
+
 
 	// Initialize global strings
 	LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
