@@ -8,10 +8,11 @@ unsigned char clip(int value) {
 }
 
 // Constructors
-DWTCompression::DWTCompression(MyImage* originalImage, int level) : originalImage(originalImage), level(level)
+DWTCompression::DWTCompression(MyImage* inImage, int level) : level(level)
 {
-	compressedImage = new MyImage(originalImage);
-    outputImage = new MyImage(originalImage);
+    originalImage = new MyImage(inImage);
+	compressedImage = new MyImage(inImage);
+    outputImage = new MyImage(inImage);
 }
 
 // Compression

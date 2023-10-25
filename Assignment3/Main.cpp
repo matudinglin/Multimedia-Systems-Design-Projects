@@ -16,6 +16,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <array>
 #include <vector>
 #include "DWTCompression.h"
 
@@ -25,11 +26,13 @@
 const int imageWidth  = 512;					// Image width
 const int imageHeight = 512;					// Image height	
 MyImage*		inImage;						// input image objects
-MyImage* 		outImage;						// compressed image object
+std::array<MyImage*, 10> outputImages;			// Output image objects
+bool isProgressive = false;                     // Show the output progressively
 HINSTANCE		hInst;							// current instance
 TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];			// The title bar text
 int level;									    // Level of DWT compression
+int currentImageIndex = 0;						// Index of the current image being displayed
 
 // Foward declarations of functions included in this code module:
 ATOM				MyRegisterClass(HINSTANCE hInstance);
@@ -73,20 +76,17 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		level = atoi(args[1].c_str());
 		std::cout << "Compression level: " << level << std::endl;
 	}
-	
-	if (level != -1)
-	{
-		// Perform DWT compression
-		DWTCompression dwt(inImage, level);
+
+	for (int i = 0; i <= 9; i++){
+		DWTCompression dwt(inImage, i);
 		dwt.compress();
 		dwt.decompress();
-		outImage = dwt.getOutputImage();
+		outputImages[i] = dwt.getOutputImage();
 	}
-	else
-	{
-
+	
+	if (level == -1){
+		isProgressive = true;
 	}
-
 
 	// Initialize global strings
 	LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -239,23 +239,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				bmi.bmiHeader.biCompression = BI_RGB;
 				bmi.bmiHeader.biSizeImage = inImage->getWidth()*inImage->getHeight();
 
-				// Display the input image on left pane
-				SetDIBitsToDevice(hdc,
-								  0,0,inImage->getWidth(),inImage->getHeight(),
-								  0,0,0,inImage->getHeight(),
-								  inImage->getImageData(),&bmi,DIB_RGB_COLORS);
-
-				// Display the compressed image on right pane
-				SetDIBitsToDevice(hdc,
-								  inImage->getWidth() + 50,0,outImage->getWidth(),outImage->getHeight(),
-								  0,0,0,outImage->getHeight(),
-								  outImage->getImageData(),&bmi,DIB_RGB_COLORS);
+				if (!isProgressive){
+					SetDIBitsToDevice(hdc,
+						0, 0, outputImages[level]->getWidth(), outputImages[level]->getHeight(),
+						0, 0, 0, outputImages[level]->getHeight(),
+						outputImages[level]->getImageData(), &bmi, DIB_RGB_COLORS);
+				}
+				else
+				{
+					SetDIBitsToDevice(hdc,
+						0, 0, outputImages[currentImageIndex]->getWidth(), outputImages[currentImageIndex]->getHeight(),
+						0, 0, 0, outputImages[currentImageIndex]->getHeight(),
+						outputImages[currentImageIndex]->getImageData(), &bmi, DIB_RGB_COLORS);
+				}
 							   
 				EndPaint(hWnd, &ps);
 			}
 			break;
 		case WM_DESTROY:
+			if (isProgressive) {
+				KillTimer(hWnd, 1);
+			}
 			PostQuitMessage(0);
+			break;
+		case WM_CREATE:
+			if (isProgressive) {
+				SetTimer(hWnd, 1, 500, NULL); // Set a timer with a 2-second interval
+			}
+			break;
+		case WM_TIMER:
+			if (isProgressive) {
+				currentImageIndex = (currentImageIndex + 1) % 10; 
+				InvalidateRect(hWnd, NULL, FALSE); // Trigger a WM_PAINT message to redraw the window
+			}
 			break;
 		default:
 			return DefWindowProc(hWnd, message, wParam, lParam);

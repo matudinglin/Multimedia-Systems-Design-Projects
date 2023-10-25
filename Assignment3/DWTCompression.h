@@ -12,7 +12,7 @@ private:
 
 public:
     // Constructors and Destructor
-    DWTCompression(MyImage* originalImage, int level);
+    DWTCompression(MyImage* inImage, int level);
     ~DWTCompression() {};
 
     // Getters
