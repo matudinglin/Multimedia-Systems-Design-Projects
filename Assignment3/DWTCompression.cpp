@@ -1,4 +1,5 @@
 #include "DWTCompression.h"
+#include <cmath>
 
 unsigned char clip(int value) {
     if (value < 0) return 0;
@@ -31,12 +32,26 @@ void DWTCompression::compress() {
 }
 
 void DWTCompression::decompress() {
+    int size = compressedImage->getWidth();
+    // Zero out high-pass coefficients at the target level
     for (int channel = 0; channel < 3; channel++) {
-        unsigned char* channelData = extractChannel(compressedImage, channel); // Decompression should work on the compressedImage
-        zeroOutHighPassCoefficients(channelData, level);
-        inverseDWT(channelData, level);
-        mergeChannel(outputImage, channelData, channel);
-        delete[] channelData; // Free up the memory allocated in extractChannel.
+		unsigned char* channelData = extractChannel(compressedImage, channel);
+		zeroOutHighPassCoefficients(channelData, level);
+		mergeChannel(outputImage, channelData, channel);
+		delete[] channelData;
+	}
+
+    for (int i = 0; i < 9 - level; ++i) {
+        for (int channel = 0; channel < 3; channel++) {
+            unsigned char* channelData = extractChannel(compressedImage, channel);
+            inverseDWT(channelData, size);
+            mergeChannel(outputImage, channelData, channel);
+            delete[] channelData;
+        }
+        // Copy data from outputImage to compressedImage
+        for (int j = 0; j < size * size * 3; ++j) {
+            compressedImage->getImageData()[j] = outputImage->getImageData()[j];
+        }
     }
 }
 
@@ -86,48 +101,57 @@ void DWTCompression::forwardDWT(unsigned char* channelData, int size) {
     delete[] tempCol;
 }
 
-void DWTCompression::inverseDWT(unsigned char* channelData, int currentLevel) {
-    if (currentLevel > 9) return;
-
-    int size = compressedImage->getWidth(); // Assuming square image
+void DWTCompression::inverseDWT(unsigned char* channelData, int size) {
+    // Temporary buffers to store the transformed values
+    int* tempRow = new int[size];
+    int* tempCol = new int[size];
 
     // Applying inverse Haar DWT on rows
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size / 2; j++) {
-            unsigned char avg = channelData[i * size + j];
-            unsigned char diff = channelData[i * size + size / 2 + j];
+            int avg = static_cast<int>(channelData[i * size + j]);
+            int diff = static_cast<int>(channelData[i * size + size / 2 + j]);
 
             // Calculate original values
-            int a = clip(static_cast<int>(avg) + static_cast<int>(diff) / 2);
-            int b = clip(static_cast<int>(avg) - static_cast<int>(diff) / 2);
+            int a = clip(avg + (diff / 2));
+            int b = clip(avg - (diff / 2));
 
             // Store results
-            channelData[i * size + 2 * j] = a;
-            channelData[i * size + 2 * j + 1] = b;
+            tempRow[2 * j] = a;
+            tempRow[2 * j + 1] = b;
+        }
+        // Copy back to channelData
+        for (int j = 0; j < size; j++) {
+            channelData[i * size + j] = static_cast<unsigned char>(tempRow[j]);
         }
     }
 
-    // Applying inverse Haar DWT on rows
-    for (int i = 0; i < size; i++) {
-        for (int j = 0; j < size / 2; j++) {
-            unsigned char avg = channelData[i * size + j];
-            unsigned char diff = channelData[i * size + size / 2 + j];
+    // Applying inverse Haar DWT on columns
+    for (int j = 0; j < size; j++) {
+        for (int i = 0; i < size / 2; i++) {
+            int avg = static_cast<int>(channelData[i * size + j]);
+            int diff = static_cast<int>(channelData[(i + size / 2) * size + j]);
 
-            int a = clip(static_cast<int>(avg) + static_cast<int>(diff) / 2);
-            int b = clip(static_cast<int>(avg) - static_cast<int>(diff) / 2);
+            int a = clip(avg + (diff / 2));
+            int b = clip(avg - (diff / 2));
 
-            channelData[i * size + 2 * j] = static_cast<unsigned char>(a);
-            channelData[i * size + 2 * j + 1] = static_cast<unsigned char>(b);
+            tempCol[2 * i] = a;
+            tempCol[2 * i + 1] = b;
+        }
+        // Copy back to channelData
+        for (int i = 0; i < size; i++) {
+            channelData[i * size + j] = static_cast<unsigned char>(tempCol[i]);
         }
     }
 
-    // Recurse on the next level
-    inverseDWT(channelData, currentLevel + 1);
+    // Free up the allocated memory
+    delete[] tempRow;
+    delete[] tempCol;
 }
 
 void DWTCompression::zeroOutHighPassCoefficients(unsigned char* channelData, int targetLevel) {
     int size = compressedImage->getWidth();
-    int coeffToKeep = size / pow(2, targetLevel);
+    int coeffToKeep = size / pow(2, 9-targetLevel);
 
     // Zero out high-pass coefficients in rows
     for (int i = 0; i < size; i++) {

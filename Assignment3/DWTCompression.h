@@ -8,7 +8,7 @@ private:
     MyImage* originalImage;         // Store the original image
     MyImage* compressedImage;       // Store the compressed image
     MyImage* outputImage;           // Store the decompressed image
-    int level;          // Desired compression level
+    int level;                      // Desired compression level
 
 public:
     // Constructors and Destructor

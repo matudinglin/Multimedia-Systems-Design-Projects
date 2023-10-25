@@ -79,8 +79,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		// Perform DWT compression
 		DWTCompression dwt(inImage, level);
 		dwt.compress();
-		//dwt.decompress();
-		outImage = dwt.getCompressedImage();
+		dwt.decompress();
+		outImage = dwt.getOutputImage();
 	}
 	else
 	{
