@@ -37,7 +37,7 @@ void DWTCompression::decompress() {
     for (int channel = 0; channel < 3; channel++) {
 		unsigned char* channelData = extractChannel(compressedImage, channel);
 		zeroOutHighPassCoefficients(channelData, level);
-		mergeChannel(outputImage, channelData, channel);
+		mergeChannel(compressedImage, channelData, channel);
 		delete[] channelData;
 	}
 
